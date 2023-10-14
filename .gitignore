@@ -8,6 +8,8 @@ __pycache__/
 
 # Prototyping
 spritesheet.py
+stitch_sprites.py
+hud.py
 plan.txt
 
 # Distribution / packaging
