@@ -1,0 +1,22 @@
+{
+    "f1": {
+        "light": "j",
+        "spec": "k",
+        "dash": "l",
+        "jump": "w",
+        "left": "a",
+        "right": "d",
+        "up": "space",
+        "down": "s"
+    },
+    "f2": {
+        "light": "j",
+        "spec": "k",
+        "dash": "l",
+        "jump": "w",
+        "left": "a",
+        "right": "d",
+        "up": "space",
+        "down": "s"
+    }
+}
