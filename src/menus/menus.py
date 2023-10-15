@@ -537,8 +537,9 @@ class FightMenu(Menu):
             else:
                 dt /= _Settings.BULLET_TIME_FACTOR
 
-        self.f1.update(dt)
-        self.f2.update(dt)
+        if np.any([self.f1.update(dt), self.f2.update(dt)]):
+            self.bullet_time = True
+            self.bullet_time_elapsed = _Settings.BULLET_TIME
         
         self.f1.animate(
             self.client.character_assets, 
@@ -553,12 +554,8 @@ class FightMenu(Menu):
             dt
         )
 
-        if (
-            self.f1.attack.check_hit(self.f2) or 
-            self.f2.attack.check_hit(self.f1)
-        ):
-            self.bullet_time = True
-            self.bullet_time_elapsed = _Settings.BULLET_TIME
+        self.f1.attack.check_hit(self.f2)
+        self.f2.attack.check_hit(self.f1)
 
         return super().update(events, dt)
     

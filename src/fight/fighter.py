@@ -19,6 +19,8 @@ class _Settings:
     YACC = 980
     KBACC = 500
     
+    HIT_DELAY = 0.1
+
     DAMAGE = {}
     with open('./assets/attacks/damages.json', 'r') as f:
         DAMAGE = json.load(f)
@@ -53,11 +55,6 @@ class Attack:
         self.recovery_frames = 0
 
         self.animation_index = 0
-
-        self.particles = {
-            'sparks': Sparks(),
-            'bolt': Bolt()
-        }
     
     def create_new_attack(
         self, 
@@ -89,15 +86,12 @@ class Attack:
                 np.array(fighter.drawbox.topleft) - np.array(self.drawbox.topleft)
             )
             if overlap is not None:
-                self.particles['sparks'].create_new_particles(*fighter.drawbox.center, 0, -1)
-                self.particles['bolt'].create_new_particles(*fighter.drawbox.center, orientation, 0)
-                kb = _Settings.KNOCKBACK[self.fighter.fighter_type][self.attack_type]
-                fighter.knockback(2 * orientation * kb, - kb)
-                fighter.gpa -= _Settings.DAMAGE[self.fighter.fighter_type][self.attack_type]
+                fighter.hit.create_new_hit({
+                    'fighter_type': self.fighter.fighter_type,
+                    'attack_type': self.attack_type,
+                    'orientation': orientation
+                }, None)
                 self.dangerous = False
-                return True
-        
-        return False
 
     def animate(
         self, 
@@ -105,26 +99,6 @@ class Attack:
         dt: float
     ):
         if self.active:
-            # self.frames_elapsed += dt * _Settings.ANIMATION_SPEED
-            # if self.phase == 'startup':
-            #     if self.frames_elapsed >= self.startup_frames:
-            #         self.frames_elapsed = 0
-            #         self.animation_index = 0
-            #         self.phase = 'active'
-            # elif self.phase == 'active':
-            #     if self.frames_elapsed >= self.active_frames:
-            #         self.phase = 'recovery'
-            #         self.frames_elapsed = 0
-            #         self.animation_index = 0
-            # else:
-            #     if self.frames_elapsed >= self.recovery_frames:
-            #         self.active = False
-            #         self.sprite = None
-            #         self.drawbox = None
-            #         self.attack_type = None
-            #         return
-                    
-
             self.animation_index += dt * _Settings.ANIMATION_SPEED
             animation_length = len(attack_assets[self.fighter.fighter_type][self.attack_type][self.fighter.facing])
             if self.animation_index >= animation_length:
@@ -138,19 +112,55 @@ class Attack:
             else:
                 self.sprite = None
 
-        [particle.animate(dt) for particle in self.particles.values()]
+        # [particle.animate(dt) for particle in self.particles.values()]
 
     def _update_drawbox(self):
         self.drawbox.center = (self.x, self.y)
     
-    def render(self, default_display: pg.Surface, effects_display: pg.Surface):
+    def render(self, default_display: pg.Surface):
         if self.sprite is not None:
             default_display.blit(
                 self.sprite,
                 self.drawbox
             )
+
+
+class Hit:
+    def __init__(self, fighter):
+        self.fighter = fighter
+        self._setup_state()
+    
+    def _setup_state(self):
+        self.was_hit = False
+        self.hit_delay = _Settings.HIT_DELAY
+        self.hit_data = {}
+        self.hurtbox = None
+    
+    def create_new_hit(
+        self,
+        hit_data: dict,
+        hurtbox: pg.Mask
+    ):
+        self.was_hit = True
+        self.hit_delay = _Settings.HIT_DELAY
+        self.hit_data = hit_data
+        self.hurtbox = hurtbox
+    
+    def update(self, dt: float):
+        if self.was_hit:
+            self.hit_delay -= dt
         
-        return np.any([particle.render(effects_display) for particle in self.particles.values()])
+            if self.hit_delay <= 0:
+                kb = _Settings.KNOCKBACK[self.hit_data['fighter_type']][self.hit_data['attack_type']]
+                self.fighter.knockback(2 * self.hit_data['orientation'] * kb, - kb)
+                self.fighter.gpa -= _Settings.DAMAGE[self.hit_data['fighter_type']][self.hit_data['attack_type']]
+
+                self.was_hit = False
+                self.hit_data = {}
+                self.hurtbox = None
+
+                return True
+        return False
 
 
 class Accessory:
@@ -211,6 +221,7 @@ class Fighter:
         self.gpa = 4.0
 
         self.attack = Attack(self)
+        self.hit = Hit(self)
 
     def _setup_animation(self):
         self.sprite = None
@@ -226,9 +237,12 @@ class Fighter:
         self.jump_particles = DustCloud()
         self.dash_particles = {
             'boom': Boom(),
-            'bolt': Bolt()
+            'bolt': Bolt(),
         }
-        self.hit_particles = Sparks()
+        self.hit_particles = {
+            'bolt': Bolt(),
+            'sparks': Sparks()
+        }
 
     def _setup_input(self):
         self.movement_inputs = []
@@ -245,7 +259,8 @@ class Fighter:
         self.kbx = kbx
         self.kby = kby
 
-        # self.hit_particles.create_new_particles(*self.drawbox.center, -orientation, 1)
+        self.hit_particles['sparks'].create_new_particles(*self.drawbox.center, 0, -1)
+        self.hit_particles['bolt'].create_new_particles(*self.drawbox.center, orientation, 0)
 
     def animate(
         self, 
@@ -293,7 +308,7 @@ class Fighter:
         
         self.jump_particles.animate(dt)
         [particles.animate(dt) for particles in self.dash_particles.values()]
-        self.hit_particles.animate(dt)
+        [particles.animate(dt) for particles in self.hit_particles.values()]
 
     def input(self, keybinds: dict, events: list[pg.Event]):
         for event in events:
@@ -425,6 +440,8 @@ class Fighter:
             if self.kby > 0:
                 self.kby = 0
 
+        return self.hit.update(dt)
+
     def render(self, default_display: pg.Surface, effects_display: pg.Surface):
         if self.sprite is None:
             return False
@@ -436,11 +453,10 @@ class Fighter:
         )
         self.accessory.render(default_display)
 
+        self.attack.render(default_display)
         use_effects = False
-        use_effects = self.attack.render(default_display, effects_display) or use_effects
-        
         use_effects = self.jump_particles.render(effects_display) or use_effects
         use_effects = np.any([particles.render(effects_display) for particles in self.dash_particles.values()]) or use_effects
-        use_effects = self.hit_particles.render(effects_display) or use_effects
+        use_effects = np.any([particles.render(effects_display) for particles in self.hit_particles.values()]) or use_effects
 
         return use_effects
