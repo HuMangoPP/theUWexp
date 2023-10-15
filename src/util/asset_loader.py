@@ -1,7 +1,6 @@
 import pygame as pg
 import os
 import json
-import time
 
 
 def load_keybinds(path='./assets/player_settings'):
@@ -40,8 +39,6 @@ def generate_frame(frame: pg.Surface, scale: float) -> dict[str, pg.Surface]:
 
 
 def load_character_assets(path='./assets/fighters', scale: float = 1):
-    start_time = time.perf_counter()
-
     basic_spritesheet = {
         filename[:-4]: pg.image.load(os.path.join(path, 'basic', filename)).convert()
         for filename in os.listdir(os.path.join(path, 'basic'))
@@ -73,15 +70,10 @@ def load_character_assets(path='./assets/fighters', scale: float = 1):
                 actions[file_data.split('-')[0]] = generate_frames(spritesheet, int(file_data.split('-')[1]), scale)
             spritesheets[character_type] = actions
 
-    end_time = time.perf_counter()
-
-    print(f'Took {end_time - start_time}')
     return spritesheets, accessories
 
 
 def load_attack_assets(path='./assets/attacks', scale: float = 1):
-    start_time = time.perf_counter()
-
     spritesheets = {}
     for character_type in os.listdir(path):
         if not os.path.isdir(os.path.join(path, character_type)):
@@ -96,10 +88,7 @@ def load_attack_assets(path='./assets/attacks', scale: float = 1):
                     scale
                 )
         spritesheets[character_type] = attack_sprites
-
-    end_time = time.perf_counter()
-
-    print(f'Took {end_time - start_time}')
+        
     return spritesheets
 
 
@@ -109,4 +98,8 @@ def load_bgs(path='./assets/backgrounds', size: tuple = (1280,720)):
         if filename[-3:] == 'png':
             bgs[filename[:-4]] = pg.transform.scale(pg.image.load(os.path.join(path, filename)).convert(), size)
     
-    return bgs
+    thumbnails = {}
+    for name, bg in bgs.items():
+        thumbnails[name] = pg.transform.scale(bg, (size[0] // 5, size[1] // 5))
+    
+    return bgs, thumbnails

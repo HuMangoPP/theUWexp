@@ -15,8 +15,9 @@ class _Settings:
     GOLD = (255, 213, 0)
     BLACK = (0,0,0)
     GRAY = (150,150,150)
+    LIGHT = (245,245,245)
 
-    FIGHTERS = [
+    FIGHTERS = [ # TODO read from a file
         'astro',
         'biotech',
         'civarch',
@@ -36,13 +37,24 @@ class _Settings:
         'plant',
         'stats'
     ]
+    
+    BGS = [ # TODO read from a file
+        'uwmain',
+        'dp',
+        'm3',
+        'e7',
+        'qnc',
+        'exp',
+        'hh',
+        'ev3'
+    ]
 
     BULLET_TIME_FACTOR = 10
     BULLET_TIME = 1 / 2
 
 
 def lerp(v1: np.ndarray, v2: np.ndarray, t: float):
-    return np.array(v1) + (np.array(v2) - np.array(v1)) * t
+    return np.array(v1) + (np.array(v2) - np.array(v1)) * np.clip(t, a_min=0, a_max=1)
 
 
 class Menu:
@@ -76,14 +88,13 @@ class Menu:
         return {}
     
     def render(self) -> list[str]:
-        self.client.displays[_Settings.DEFAULT_DISPLAY].fill((20, 26, 51))
-
         displays_to_render = [_Settings.DEFAULT_DISPLAY]
         if self.transition_phase > 0:
             displays_to_render.append(_Settings.OVERLAY_DISPLAY)
+            self._render_overlay()
         return displays_to_render
         
-    def render_overlay(self):
+    def _render_overlay(self):
         if self.transition_phase == 1: 
             transition_out(self.client.displays[_Settings.OVERLAY_DISPLAY], self.transition_time)
         elif self.transition_phase == 2:
@@ -103,7 +114,7 @@ class StartMenu(Menu):
         self.goto = 'main'
     
     def _load_assets(self):
-        self.wlogo = pg.transform.scale(pg.image.load('./assets/menus/wlogo.png').convert_alpha(), _Settings.LOGO_SIZE)
+        self.wlogo = pg.transform.scale(pg.image.load('./assets/ui/uw.png').convert_alpha(), _Settings.LOGO_SIZE)
         self.wlogo_rect = self.wlogo.get_rect()
         self.wlogo_rect.center = np.array(self.client.resolution) / 2 + np.array([0,-50])
 
@@ -133,7 +144,7 @@ class StartMenu(Menu):
     def render(self) -> list[str]:
         displays_to_render = super().render()
         
-        self.client.displays[_Settings.DEFAULT_DISPLAY].fill((255,255,255))
+        self.client.displays[_Settings.DEFAULT_DISPLAY].fill(_Settings.LIGHT)
         self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
             self.wlogo,
             self.wlogo_rect
@@ -202,7 +213,9 @@ class StartMenu(Menu):
             self.highlight * 255
         )
 
-        super().render_overlay()
+        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+            self.client.cursor, pg.mouse.get_pos()
+        )
         
         return displays_to_render
 
@@ -265,37 +278,39 @@ class MainMenu(Menu):
 
     def render(self):
         displays_to_render = super().render()
-        self.client.displays[_Settings.DEFAULT_DISPLAY].fill((255,255,255))
+        self.client.displays[_Settings.DEFAULT_DISPLAY].fill(_Settings.LIGHT)
 
         pg.draw.rect(
             self.client.displays[_Settings.DEFAULT_DISPLAY],
-            lerp(_Settings.BLACK, _Settings.GOLD, self.training_opacity),
+            lerp(_Settings.GOLD, _Settings.BLACK, self.training_opacity),
             self.training_rect
         )
         self.client.font.render(
             self.client.displays[_Settings.DEFAULT_DISPLAY],
             'training mode',
             *self.training_rect.center,
-            lerp(_Settings.GOLD, _Settings.BLACK, self.training_opacity),
+            lerp(_Settings.BLACK, _Settings.GOLD, self.training_opacity),
             35, 
             style='center'
         )
 
         pg.draw.rect(
             self.client.displays[_Settings.DEFAULT_DISPLAY],
-            lerp(_Settings.BLACK, _Settings.GOLD, self.options_opacity),
+            lerp(_Settings.GOLD, _Settings.BLACK, self.options_opacity),
             self.options_rect
         )
         self.client.font.render(
             self.client.displays[_Settings.DEFAULT_DISPLAY],
             'options',
             *self.options_rect.center,
-            lerp(_Settings.GOLD, _Settings.BLACK, self.options_opacity),
+            lerp(_Settings.BLACK, _Settings.GOLD, self.options_opacity),
             35, 
             style='center'
         )
 
-        super().render_overlay()
+        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+            self.client.cursor, pg.mouse.get_pos()
+        )
 
         return displays_to_render
 
@@ -318,11 +333,24 @@ class SelectMenu(Menu):
         self.boxes = [
             pg.Rect(
                 self.client.resolution[0] / 2 + (x - 3 / 2) * 160 + 5, 
-                self.client.resolution[1] / 2 + (y - 6 / 2) * 60, 
+                self.client.resolution[1] * 5 / 12 + y * 60, 
                 150, 50
             )
             for y in np.arange(6)
             for x in np.arange(3)
+        ]
+        self.box_hover = -1
+
+        self.selected_bg = 0
+        self.scroll_boxes = [
+            pg.Rect(
+                self.client.resolution[0] / 2 - (self.client.resolution[0] / 10 + 20) - 10,
+                190, 20, 20
+            ),
+            pg.Rect(
+                self.client.resolution[0] / 2 + (self.client.resolution[0] / 10 + 20) - 10,
+                190, 20, 20
+            )
         ]
     
     def update(self, events: list[pg.Event], dt: float):
@@ -336,6 +364,17 @@ class SelectMenu(Menu):
                         elif self.currently_picking == 2:
                             self.f2_selection = _Settings.FIGHTERS[i]
                             self.currently_picking = 0
+            
+                if self.scroll_boxes[0].collidepoint(event.pos):
+                    self.selected_bg = (self.selected_bg - 1) % len(_Settings.BGS)
+                if self.scroll_boxes[1].collidepoint(event.pos):
+                    self.selected_bg = (self.selected_bg + 1) % len(_Settings.BGS)
+
+            if event.type == pg.MOUSEMOTION:
+                self.box_hover = -1
+                for i, box in enumerate(self.boxes):
+                    if box.collidepoint(event.pos):
+                        self.box_hover = i
                 
             if event.type == pg.KEYDOWN:
                 if (
@@ -355,7 +394,7 @@ class SelectMenu(Menu):
     def render(self):
         displays_to_render = super().render()
         
-        self.client.displays[_Settings.DEFAULT_DISPLAY].fill((255,255,255))
+        self.client.displays[_Settings.DEFAULT_DISPLAY].fill(_Settings.LIGHT)
         self.client.font.render(
             self.client.displays[_Settings.DEFAULT_DISPLAY],
             'character select',
@@ -366,15 +405,19 @@ class SelectMenu(Menu):
             style='center'
         )
 
-        [pg.draw.rect(self.client.displays[_Settings.DEFAULT_DISPLAY], (50,50,50), box) for box in self.boxes]
+        [pg.draw.rect(
+            self.client.displays[_Settings.DEFAULT_DISPLAY], 
+            lerp(_Settings.BLACK, _Settings.GOLD, float(i == self.box_hover)), 
+            box
+        ) for i, box in enumerate(self.boxes)]
         [self.client.font.render(
             self.client.displays[_Settings.DEFAULT_DISPLAY],
             fighter_name,
             *box.center,
-            (255,255,255),
+            lerp(_Settings.GOLD, _Settings.BLACK, float(i == self.box_hover)),
             10,
             style='center'
-        ) for fighter_name, box in zip(_Settings.FIGHTERS, self.boxes)]
+        ) for i, (fighter_name, box) in enumerate(zip(_Settings.FIGHTERS, self.boxes))]
 
         if self.currently_picking == 1:
             pg.draw.rect(
@@ -442,7 +485,19 @@ class SelectMenu(Menu):
                 drawbox
             )
 
-        super().render_overlay()
+        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+            self.client.bg_thumbs[_Settings.BGS[self.selected_bg]],
+            (self.client.resolution[0] / 2 - self.client.resolution[0] / 10, 200 - self.client.resolution[1] / 10)
+        )
+        [pg.draw.rect(
+            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            _Settings.GOLD,
+            box
+        ) for box in self.scroll_boxes]
+
+        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+            self.client.cursor, pg.mouse.get_pos()
+        )
 
         return displays_to_render
         
@@ -451,10 +506,11 @@ class FightMenu(Menu):
     def __init__(self, client):
         super().__init__(client)
 
-        self._load_fighter_data()
+        self._load_fight_data()
         self._setup_variables()
 
-    def _load_fighter_data(self):
+    def _load_fight_data(self):
+        self.bg = 'uwmain'
         self.f1 = Fighter()
         self.f2 = Fighter()
     
@@ -462,9 +518,11 @@ class FightMenu(Menu):
         self.bullet_time = False
         self.bullet_time_elapsed = 0
     
-    def select_fighters(self, select_menu):
+    def get_fight_data(self, select_menu):
         self.f1.fighter_type = select_menu.f1_selection
         self.f2.fighter_type = select_menu.f2_selection
+
+        self.bg = _Settings.BGS[select_menu.selected_bg]
 
     def _check_victory(self):
         return 0
@@ -508,7 +566,7 @@ class FightMenu(Menu):
         displays_to_render = super().render()
 
         self.client.displays[_Settings.DEFAULT_DISPLAY].fill((0,0,0))
-        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(self.client.bgs['uwmain'], (0,0))
+        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(self.client.bgs[self.bg], (0,0))
 
         use_effects = False 
         self.client.displays[_Settings.EFFECTS_DISPLAY].fill((0,0,0))
@@ -543,7 +601,9 @@ class FightMenu(Menu):
             style='center'
         )
 
-        super().render_overlay()
+        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+            self.client.cursor, pg.mouse.get_pos()
+        )
 
         return displays_to_render
 
