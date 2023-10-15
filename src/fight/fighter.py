@@ -1,23 +1,14 @@
 import pygame as pg
 import numpy as np
-import os
 import json
+
+from .effects import Boom, Sparks, Bolt, DustCloud
 
 
 class _Settings:
     GROUND_LEVEL = 600
     
     ANIMATION_SPEED = 12
-    FADE_SPEED = 4
-
-    CHARACTER_COLOURS = {
-        'math': (255, 61, 187),
-        'eng': (190, 39, 245),
-        'env': (0, 219, 88),
-        'art': (255, 128, 0),
-        'sci': (31, 98, 255),
-        'ahs': (46, 255, 224),
-    }
 
     X_SPD = 300
     JUMP_SPEED = -400
@@ -27,8 +18,6 @@ class _Settings:
     XACC = 1500
     YACC = 980
     KBACC = 500
-
-    EFFECT_LIFETIME = 0.1
     
     DAMAGE = {}
     with open('./assets/attacks/damages.json', 'r') as f:
@@ -37,172 +26,6 @@ class _Settings:
     KNOCKBACK = {}
     with open('./assets/attacks/knockbacks.json', 'r') as f:
         KNOCKBACK = json.load(f)
-
-
-class Boom:
-    def __init__(self):
-        self._setup_state()
-        self._setup_animation()
-    
-    def _setup_state(self):
-        self.active = False
-        self.orientation = 0
-    
-    def _setup_animation(self):
-        self.x, self.y = 0, 0
-        self.r = 0
-        self.thickness = 100
-    
-    def create_new_particles(
-        self,
-        x: float, y: float,
-        orientation: int
-    ):
-        self.active = True
-        self.orientation = orientation
-
-        self.x, self.y = x, y
-        self.r = 0
-        self.thickness = 100
-    
-    def animate(self, dt: float):
-        if self.active:
-            self.r += dt * 500
-            self.thickness -= dt * 500
-            if self.thickness <= 0:
-                self.active = False
-    
-    def render(self, effects_display: pg.Surface):
-        if self.active:
-            pg.draw.circle(
-                effects_display,
-                (255,255,255),
-                (self.x,self.y),
-                self.r,
-                int(np.ceil(self.thickness))
-            )
-            return True
-        return False
-
-
-class Sparks:
-    def __init__(self):
-        self._setup_state()
-    
-    def _setup_state(self):
-        self.pos = np.array([])
-        self.vel = np.array([])
-        self.lifetime = np.array([])
-
-    def create_new_particles(
-        self,
-        x: float, y: float,
-        ox: float, oy: float,
-        num_particles: int = 3
-    ):
-        new_pos = np.full((num_particles * 2,2), [x,y])
-        angles = np.pi / 6 * (np.random.rand(num_particles * 2) * 2 - 1) + np.arctan2(oy, ox)
-        new_vel = 1000 * np.column_stack([
-            np.cos(angles),
-            np.sin(angles)
-        ])
-        new_vel[num_particles:] = -new_vel[num_particles:]
-        new_lifetime = np.full(num_particles * 2, _Settings.EFFECT_LIFETIME)
-
-        self.pos = np.array([*self.pos, *new_pos])
-        self.vel = np.array([*self.vel, *new_vel])
-        self.lifetime = np.array([*self.lifetime, *new_lifetime])
-
-    def animate(self, dt: float):
-        self.lifetime = self.lifetime - dt
-        mask = self.lifetime > 0
-        self.pos = self.pos[mask]
-        self.vel = self.vel[mask]
-        self.lifetime = self.lifetime[mask]
-
-        self.pos = self.pos + self.vel * dt
-    
-    def render(self, effects_display: pg.Surface):
-        for pos, vel, lifetime in zip(self.pos, self.vel, self.lifetime):
-            perp = np.array([0,0])
-            perp[0] = vel[1]
-            perp[1] = -vel[0]
-            vel_scale = vel / 200 / (lifetime + _Settings.EFFECT_LIFETIME)
-            perp_scale = perp / 20 * lifetime
-            vertices = vel_scale + np.array([
-                pos - vel_scale,
-                pos - perp_scale, 
-                pos + 2 * vel_scale,
-                pos + perp_scale,
-            ])
-            pg.draw.polygon(
-                effects_display,
-                (255,255,255),
-                vertices
-            )
-        if self.lifetime.size > 0:
-            return True
-        return False
-
-
-class Cut:
-    def __init__(self):
-        self._setup_state()
-    
-    def _setup_state(self):
-        self.active = False
-        self.pos = np.zeros(2)
-        self.vel = np.zeros(2)
-        self.angle = 0
-        self.lifetime = 1
-        self.move_forward = False
-    
-    def create_new_particles(
-        self,
-        x: float, y: float,
-        ox: float, oy: float,
-    ):
-        self.active = True
-        self.pos = np.array([x,y])
-        self.angle = np.arctan2(oy, ox) + np.pi / 12 * (np.random.rand() * 2 - 1)
-        self.vel = 3000 * np.array([
-            np.cos(self.angle),
-            np.sin(self.angle)
-        ])
-        self.move_forward = True
-        self.lifetime = _Settings.EFFECT_LIFETIME
-
-    def animate(self, dt: float):
-        if not self.active:
-            return
-        self.lifetime -= dt
-        if self.lifetime < _Settings.EFFECT_LIFETIME / 2:
-            self.move_forward = False
-        if self.lifetime < 0:
-            self.active = False
-        
-        if self.move_forward:
-            self.pos = self.pos + self.vel * dt
-        else:
-            self.pos = self.pos - self.vel * dt
-    
-    def render(self, effects_display: pg.Surface):
-        if self.active:
-            long = 50 / (self.lifetime + _Settings.EFFECT_LIFETIME) * np.array([np.cos(self.angle), np.sin(self.angle)])
-            short = 3 * np.array([np.cos(self.angle + np.pi / 2), np.sin(self.angle + np.pi / 2)])
-            points = np.array([
-                self.pos - long,
-                self.pos - short,
-                self.pos + long,
-                self.pos + short,
-            ])
-            pg.draw.polygon(
-                effects_display,
-                (255,255,255),
-                points
-            )
-            return True
-        return False
 
 
 class Attack:
@@ -233,7 +56,7 @@ class Attack:
 
         self.particles = {
             'sparks': Sparks(),
-            'cut': Cut()
+            'bolt': Bolt()
         }
     
     def create_new_attack(
@@ -267,7 +90,7 @@ class Attack:
             )
             if overlap is not None:
                 self.particles['sparks'].create_new_particles(*fighter.drawbox.center, 0, -1)
-                self.particles['cut'].create_new_particles(*fighter.drawbox.center, orientation, 0)
+                self.particles['bolt'].create_new_particles(*fighter.drawbox.center, orientation, 0)
                 kb = _Settings.KNOCKBACK[self.fighter.fighter_type][self.attack_type]
                 fighter.knockback(2 * orientation * kb, - kb)
                 fighter.gpa -= _Settings.DAMAGE[self.fighter.fighter_type][self.attack_type]
@@ -330,135 +153,6 @@ class Attack:
         return np.any([particle.render(effects_display) for particle in self.particles.values()])
 
 
-class DustCloud:
-    def __init__(self):
-        self._setup_state()
-    
-    def _setup_state(self):
-        self.pos = np.array([])
-        self.vel = np.array([])
-        self.lifetime = np.array([])
-    
-    def create_new_particles(
-        self,
-        x: float, y: float, ox: float,
-        num_clouds: int = 5
-    ):
-        new_pos = np.full((num_clouds * 2,2), [x,y])
-        new_vel = np.array([
-            *np.column_stack([
-                400 * (np.random.rand(num_clouds) * 2 - 1),
-                -50 * (np.random.rand(num_clouds))
-            ]),
-            *np.column_stack([
-                250 * np.full(num_clouds, ox / 2) + 50 * (np.random.rand(num_clouds) * 2 - 1),
-                -100 * np.ones(num_clouds)
-            ])
-        ])
-        new_lifetime = np.full(num_clouds * 2, _Settings.EFFECT_LIFETIME * 2)
-
-        self.pos = np.array([*self.pos, *new_pos])
-        self.vel = np.array([*self.vel, *new_vel])
-        self.lifetime = np.array([*self.lifetime, *new_lifetime])
-    
-    def animate(self, dt: float):
-        self.lifetime = self.lifetime - dt
-        mask = self.lifetime > 0
-
-        self.pos = self.pos[mask]
-        self.vel = self.vel[mask]
-        self.lifetime = self.lifetime[mask]
-
-        self.pos = self.pos + self.vel * dt
-
-    def render(self, effects_display: pg.Surface):
-        [
-            pg.draw.circle(effects_display, (50,50,50), pos, lifetime * 100)
-            for pos, lifetime in zip(self.pos, self.lifetime)
-        ]
-        if self.lifetime.size > 0:
-            return True
-        return False
-
-
-class MovementParticles:
-    def __init__(self):
-        self._setup_state()
-        self._setup_animation()
-    
-    def _setup_state(self):
-        self.active = False
-        self.orientation = 0
-    
-    def _setup_animation(self):
-        self.x, self.y = 0, 0
-        self.sprite = None
-        self.drawbox = None
-
-        self.effect_type = None
-        self.phase = None
-        self.animation_index = 0
-        self.animation_done = False
-        self.alpha = 1
-    
-    def create_new_particles(
-        self, 
-        effect_type: str,
-        x: float, y: float,
-        orientation: int
-    ):
-        self.active = True
-        self.orientation = orientation
-        self.effect_type = effect_type
-
-        self.x, self.y = x, y
-
-        self.phase = 'active'
-        self.animation_index = 0
-        self.animation_done = False
-        self.alpha = 1
-
-        self.sprite = None
-        self.drawbox = None
-    
-    def animate(
-        self,
-        effect_assets: dict,
-        dt: float,
-    ):
-        if self.active:
-            self.animation_index += dt * _Settings.ANIMATION_SPEED
-
-            animation_length = len(effect_assets[self.effect_type][self.phase][self.orientation])
-            if self.phase == 'active':
-                if self.animation_index >= animation_length:
-                    self.phase = 'fade'
-                    self.animation_index = 0
-            
-            elif self.phase == 'fade':
-                self.alpha -= dt * _Settings.FADE_SPEED
-                if self.animation_index >= animation_length:
-                    self.animation_index = animation_length - 1
-                if self.alpha <= 0:
-                    self.animation_done = True
-            
-            if self.animation_done:
-                self.active = False
-                self.sprite = None
-                self.drawbox = None
-            else:
-                self.sprite = effect_assets[self.effect_type][self.phase][self.orientation][int(self.animation_index)]
-                if self.drawbox is None:
-                    self.drawbox = self.sprite.get_rect()
-                    self.drawbox.centerx = self.x
-                    self.drawbox.bottom = self.y
-
-    def render(self, default_display: pg.Surface):
-        if self.sprite is not None:
-            self.sprite.set_alpha(self.alpha * 255)
-            default_display.blit(self.sprite, self.drawbox)
-
-
 class Accessory:
     def __init__(self, fighter):
         self.fighter = fighter
@@ -466,8 +160,8 @@ class Accessory:
         self._setup_animation()
     
     def _setup_state(self):
-        self.x = 0
-        self.y = 0
+        self.x = self.fighter.x
+        self.y = self.fighter.y
         self.xvel = 0
         self.yvel = 0
 
@@ -532,7 +226,7 @@ class Fighter:
         self.jump_particles = DustCloud()
         self.dash_particles = {
             'boom': Boom(),
-            'cut': Cut()
+            'bolt': Bolt()
         }
         self.hit_particles = Sparks()
 
@@ -629,7 +323,7 @@ class Fighter:
                         *self.drawbox.center,
                         1 if self.facing == 'right' else 0
                     )
-                    self.dash_particles['cut'].create_new_particles(*self.drawbox.center, orientation, 0)
+                    self.dash_particles['bolt'].create_new_particles(*self.drawbox.center, orientation, 0)
                 
                 for keybind in ['light', 'spec']:
                     if event.key == keybinds[keybind]:
