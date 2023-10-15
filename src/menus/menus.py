@@ -544,6 +544,8 @@ class FightMenu(Menu):
         if np.any([self.f1.update(dt), self.f2.update(dt)]):
             self.bullet_time = True
             self.bullet_time_elapsed = _Settings.BULLET_TIME
+        self.f1.x = np.clip(self.f1.x, 0, self.client.resolution[0])
+        self.f2.x = np.clip(self.f2.x, 0, self.client.resolution[0])
         
         self.f1.animate(
             self.client.character_assets, 
