@@ -513,6 +513,10 @@ class FightMenu(Menu):
         self.bg = 'uwmain'
         self.f1 = Fighter()
         self.f2 = Fighter()
+
+        self.f1.x = 300
+        self.f2.x = self.client.resolution[0] - 300
+        self.f2.facing = 'left'
     
     def _setup_variables(self):
         self.bullet_time = False
@@ -554,8 +558,9 @@ class FightMenu(Menu):
             dt
         )
 
-        self.f1.attack.check_hit(self.f2)
-        self.f2.attack.check_hit(self.f1)
+        if np.any([self.f1.attack.check_hit(self.f2), self.f2.attack.check_hit(self.f1)]):
+            self.bullet_time = True
+            self.bullet_time_elapsed = _Settings.BULLET_TIME
 
         return super().update(events, dt)
     

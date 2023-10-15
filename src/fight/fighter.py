@@ -81,7 +81,29 @@ class Attack:
             self.dangerous and
             self.active
         ):
-            overlap = pg.mask.from_surface(self.sprite).overlap(
+            mask = pg.mask.from_surface(self.sprite)
+            # check parry
+            overlap = mask.overlap(
+                pg.mask.from_surface(fighter.attack.sprite),
+                np.array(fighter.attack.drawbox.topleft) - np.array(self.drawbox.topleft)
+            ) if fighter.attack.sprite is not None else None
+            if overlap is not None:
+                self.fighter.hit.parry()
+                self.dangerous = False
+                
+                self.fighter.hit_particles['sparks'].create_new_particles(
+                    *(np.array(self.drawbox.topleft) + np.array(overlap)), 
+                    0, -1
+                )
+                self.fighter.hit_particles['bolt'].create_new_particles(
+                    *(np.array(self.drawbox.topleft) + np.array(overlap)), 
+                    orientation,
+                    0
+                )
+                return True
+
+            # check hit with character
+            overlap = mask.overlap(
                 pg.mask.from_surface(fighter.sprite),
                 np.array(fighter.drawbox.topleft) - np.array(self.drawbox.topleft)
             )
@@ -90,8 +112,10 @@ class Attack:
                     'fighter_type': self.fighter.fighter_type,
                     'attack_type': self.attack_type,
                     'orientation': orientation
-                }, None)
+                })
                 self.dangerous = False
+
+        return False
 
     def animate(
         self, 
@@ -134,18 +158,19 @@ class Hit:
         self.was_hit = False
         self.hit_delay = _Settings.HIT_DELAY
         self.hit_data = {}
-        self.hurtbox = None
     
     def create_new_hit(
         self,
         hit_data: dict,
-        hurtbox: pg.Mask
     ):
         self.was_hit = True
         self.hit_delay = _Settings.HIT_DELAY
         self.hit_data = hit_data
-        self.hurtbox = hurtbox
     
+    def parry(self):
+        self.was_hit = False
+        self.hit_data = {}
+
     def update(self, dt: float):
         if self.was_hit:
             self.hit_delay -= dt
@@ -157,7 +182,6 @@ class Hit:
 
                 self.was_hit = False
                 self.hit_data = {}
-                self.hurtbox = None
 
                 return True
         return False
