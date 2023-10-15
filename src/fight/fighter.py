@@ -268,6 +268,11 @@ class Fighter:
             'sparks': Sparks()
         }
 
+        self.sfx = {
+            'honk': pg.mixer.Sound('./assets/sounds/honk.wav'),
+            'hit': pg.mixer.Sound('./assets/sounds/hit.wav')
+        }
+
     def _setup_input(self):
         self.movement_inputs = []
         self.direction_inputs = []
@@ -285,6 +290,8 @@ class Fighter:
 
         self.hit_particles['sparks'].create_new_particles(*self.drawbox.center, 0, -1)
         self.hit_particles['bolt'].create_new_particles(*self.drawbox.center, orientation, 0)
+        
+        self.sfx['hit'].play()
 
     def animate(
         self, 
@@ -396,6 +403,7 @@ class Fighter:
                     f'{attack_type}{self.attack_input}',
                     x, y
                 )
+                self.sfx['honk'].play()
             self.attack_input = None
         
         if self.dashing:
