@@ -9,45 +9,48 @@ class _Settings:
 class Boom:
     def __init__(self):
         self._setup_state()
-        self._setup_animation()
     
     def _setup_state(self):
-        self.active = False
-        self.orientation = 0
-    
-    def _setup_animation(self):
-        self.x, self.y = 0, 0
-        self.r = 0
-        self.thickness = 100
+        self.pos = np.array([])
+        self.vel = np.array([])
+        self.lifetime = np.array([])
     
     def create_new_particles(
         self,
         x: float, y: float,
-        orientation: int
+        ox: int,
+        num_clouds: int = 10
     ):
-        self.active = True
-        self.orientation = orientation
+        new_pos = np.full((num_clouds,2), [x,y])
+        new_vel = np.array([
+            *np.column_stack([
+                -ox * np.cos(np.linspace(0, 2 * np.pi, num_clouds)),
+                np.sin(np.linspace(0, 2 * np.pi, num_clouds)),
+            ]),
+        ]) * np.hstack([
+            np.linspace(700, 500, num_clouds // 2),
+            np.linspace(500, 700, num_clouds // 2)
+        ]).reshape(-1,1)
+        new_lifetime = np.full(num_clouds, _Settings.EFFECT_LIFETIME * 2)
 
-        self.x, self.y = x, y
-        self.r = 0
-        self.thickness = 100
+        self.pos = np.array([*self.pos, *new_pos])
+        self.vel = np.array([*self.vel, *new_vel])
+        self.lifetime = np.array([*self.lifetime, *new_lifetime])
     
     def animate(self, dt: float):
-        if self.active:
-            self.r += dt * 500
-            self.thickness -= dt * 500
-            if self.thickness <= 0:
-                self.active = False
+        self.lifetime = self.lifetime - dt
+        mask = self.lifetime > 0
+
+        self.pos = self.pos[mask]
+        self.vel = self.vel[mask]
+        self.lifetime = self.lifetime[mask]
+
+        self.pos = self.pos + self.vel * dt
     
     def render(self, effects_display: pg.Surface):
-        if self.active:
-            pg.draw.circle(
-                effects_display,
-                (255,255,255),
-                (self.x,self.y),
-                self.r,
-                int(np.ceil(self.thickness))
-            )
+        [pg.draw.circle(effects_display, (50,50,50), pos, lifetime * 250)
+            for pos, lifetime in zip(self.pos, self.lifetime)]
+        if self.lifetime.size > 0:
             return True
         return False
 
@@ -194,7 +197,7 @@ class DustCloud:
             ]),
             *np.column_stack([
                 250 * np.full(num_clouds, ox / 2) + 50 * (np.random.rand(num_clouds) * 2 - 1),
-                -100 * np.ones(num_clouds)
+                -200 * np.ones(num_clouds)
             ])
         ])
         new_lifetime = np.full(num_clouds * 2, _Settings.EFFECT_LIFETIME * 2)
@@ -214,10 +217,8 @@ class DustCloud:
         self.pos = self.pos + self.vel * dt
 
     def render(self, effects_display: pg.Surface):
-        [
-            pg.draw.circle(effects_display, (50,50,50), pos, lifetime * 100)
-            for pos, lifetime in zip(self.pos, self.lifetime)
-        ]
+        [pg.draw.circle(effects_display, (50,50,50), pos, lifetime * 100)
+            for pos, lifetime in zip(self.pos, self.lifetime)]
         if self.lifetime.size > 0:
             return True
         return False

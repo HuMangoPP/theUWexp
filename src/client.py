@@ -32,16 +32,16 @@ class Client:
 
         # get window and ctx
         self.resolution = _Settings.RESOLUTION
-        self.screen = pg.display.set_mode(self.resolution)
-        # pg.display.set_mode(self.resolution, pg.OPENGL | pg.DOUBLEBUF)
-        # self.ctx = mgl.create_context()
-        # self.ctx.enable(mgl.BLEND)
-        # self.ctx.blend_func = (
-        #     mgl.SRC_ALPHA, mgl.ONE_MINUS_SRC_ALPHA
-        # )
+        # self.screen = pg.display.set_mode(self.resolution)
+        pg.display.set_mode(self.resolution, pg.OPENGL | pg.DOUBLEBUF)
+        self.ctx = mgl.create_context()
+        self.ctx.enable(mgl.BLEND)
+        self.ctx.blend_func = (
+            mgl.SRC_ALPHA, mgl.ONE_MINUS_SRC_ALPHA
+        )
 
         # get graphics engine, font, and displays
-        # self.graphics_engine = GraphicsEngine(self.ctx, self.resolution, './src')
+        self.graphics_engine = GraphicsEngine(self.ctx, self.resolution, './src')
         self.font = Font(pg.image.load('./src/pyfont/font.png').convert())
         self.displays = {
             'default': pg.Surface(self.resolution),
@@ -97,17 +97,17 @@ class Client:
         return self.menus[self.current_menu].update(events, dt)
 
     def render(self):
-        # self.ctx.clear(0.08, 0.1, 0.2)
+        self.ctx.clear(0.08, 0.1, 0.2)
         displays_to_render = self.menus[self.current_menu].render()
-        # [
-        #     self.graphics_engine.render(
-        #         self.displays[display], 
-        #         self.displays[display].get_rect(), 
-        #         shader=display
-        #     ) 
-        #     for display in displays_to_render
-        # ]
-        [self.screen.blit(self.displays[display], (0,0)) for display in displays_to_render]
+        [
+            self.graphics_engine.render(
+                self.displays[display], 
+                self.displays[display].get_rect(), 
+                shader=display
+            ) 
+            for display in displays_to_render
+        ]
+        # [self.screen.blit(self.displays[display], (0,0)) for display in displays_to_render]
     
     def run(self):
         self.menus[self.current_menu].on_load()

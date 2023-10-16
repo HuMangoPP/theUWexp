@@ -355,7 +355,7 @@ class Fighter:
                 
                 if event.key == keybinds['jump'] and self.y >= _Settings.GROUND_LEVEL:
                     self.yvel = _Settings.JUMP_SPEED
-                    self.jump_particles.create_new_particles(self.x, self.y, 1 if self.facing == 'right' else 0)
+                    self.jump_particles.create_new_particles(self.x, self.y, 1 if self.facing == 'right' else -1)
                 
                 if event.key == keybinds['dash']:
                     orientation = 1 if self.facing == 'right' else -1
