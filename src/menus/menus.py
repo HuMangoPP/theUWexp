@@ -517,6 +517,10 @@ class FightMenu(Menu):
         self.f1.x = 300
         self.f2.x = self.client.resolution[0] - 300
         self.f2.facing = 'left'
+
+        self.winner = None
+        self.win_banner_opacity = 0
+        self.win_banner_delay = 0
     
     def _setup_variables(self):
         self.bullet_time = False
@@ -532,7 +536,15 @@ class FightMenu(Menu):
         return 0
     
     def update(self, events: list[pg.Event], dt: float):
-        self.f1.input(self.client.keybinds['f1'], events)
+        if self.winner is None:
+            self.f1.input(self.client.keybinds['f1'], events)
+        else:
+            self.win_banner_opacity = np.minimum(self.win_banner_opacity + dt, 1)
+            self.win_banner_delay += dt
+            if self.win_banner_delay >= 5:
+                self.goto = 'select'
+                self.transition_phase = 1
+
 
         if self.bullet_time:
             self.bullet_time_elapsed -= dt
@@ -563,6 +575,11 @@ class FightMenu(Menu):
         if np.any([self.f1.attack.check_hit(self.f2), self.f2.attack.check_hit(self.f1)]):
             self.bullet_time = True
             self.bullet_time_elapsed = _Settings.BULLET_TIME
+        
+        if self.f1.gpa <= 0 and self.winner is None:
+            self.winner = 'f2'
+        if self.f2.gpa <= 0 and self.winner is None:
+            self.winner = 'f1'
 
         return super().update(events, dt)
     
@@ -604,6 +621,20 @@ class FightMenu(Menu):
             25,
             style='center'
         )
+
+        if self.winner is not None:
+            banner = pg.Surface((self.client.resolution[0], 100))
+            banner.fill((0,0,0))
+            self.client.font.render(
+                banner,
+                f'{self.winner} wins!',
+                self.client.resolution[0] / 2, 50,
+                _Settings.GOLD,
+                50,
+                style='center'
+            )
+            banner.set_alpha(self.win_banner_opacity * 255)
+            self.client.displays[_Settings.DEFAULT_DISPLAY].blit(banner, (0, self.client.resolution[1] / 2 - 50))
 
         self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
             self.client.cursor, pg.mouse.get_pos()

@@ -242,7 +242,7 @@ class Fighter:
         self.kbx = 0
         self.kby = 0
 
-        self.gpa = 4.0
+        self.gpa = 0.1
 
         self.attack = Attack(self)
         self.hit = Hit(self)
