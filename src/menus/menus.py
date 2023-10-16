@@ -57,6 +57,16 @@ def lerp(v1: np.ndarray, v2: np.ndarray, t: float):
     return np.array(v1) + (np.array(v2) - np.array(v1)) * np.clip(t, a_min=0, a_max=1)
 
 
+def get_splash(character_assets: dict, accessory_assets: dict, fighter_type: str, facing: str) -> tuple[pg.Surface, pg.Surface]:
+    sprite = character_assets.get(fighter_type, character_assets['basic'])['idle'][facing][0]
+    accessory = accessory_assets.get(fighter_type, {
+        'right': None,
+        'left': None
+    })[facing]
+
+    return sprite, accessory
+
+
 class Menu:
     def __init__(self, client):
         self.client = client
@@ -444,15 +454,16 @@ class SelectMenu(Menu):
             )
         
         if self.f1_selection is not None:
-            sprite = self.client.character_assets.get(self.f1_selection, self.client.character_assets['basic'])['idle']['right'][0]
-            accessory = self.client.accessory_assets.get(self.f1_selection, {
-                'right': None,
-                'left': None
-            })['right']
+            sprite, accessory = get_splash(
+                self.client.character_assets,
+                self.client.accessory_assets,
+                self.f1_selection,
+                'right'
+            )
 
             drawbox = sprite.get_rect()
             drawbox.centerx = 50 + self.client.resolution[0] / 8
-            drawbox.centery = 50 + (self.client.resolution[1] - 100) / 2
+            drawbox.centery = self.client.resolution[1] / 2
 
             self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
                 sprite,
@@ -465,15 +476,16 @@ class SelectMenu(Menu):
             )
             
         if self.f2_selection is not None:
-            sprite = self.client.character_assets.get(self.f2_selection, self.client.character_assets['basic'])['idle']['left'][0]
-            accessory = self.client.accessory_assets.get(self.f2_selection, {
-                'right': None,
-                'left': None
-            })['left']
+            sprite, accessory = get_splash(
+                self.client.character_assets,
+                self.client.accessory_assets,
+                self.f2_selection,
+                'left'
+            )
 
             drawbox = sprite.get_rect()
-            drawbox.centerx = self.client.resolution[0] * 3 / 4 - 50 + self.client.resolution[0] / 8
-            drawbox.centery = 50 + (self.client.resolution[1] - 100) / 2
+            drawbox.centerx = self.client.resolution[0] * 7 / 8
+            drawbox.centery = self.client.resolution[1] / 2
 
             self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
                 sprite,
@@ -505,9 +517,18 @@ class SelectMenu(Menu):
 class FightMenu(Menu):
     def __init__(self, client):
         super().__init__(client)
-
+        self._load_meta_state()
         self._load_fight_data()
-        self._setup_variables()
+
+    def _load_meta_state(self):
+        self.split_screen_countdown = 3
+
+        self.winner = None
+        self.win_banner_opacity = 0
+        self.win_banner_delay = 0
+
+        self.bullet_time = False
+        self.bullet_time_elapsed = 0
 
     def _load_fight_data(self):
         self.bg = 'uwmain'
@@ -517,14 +538,6 @@ class FightMenu(Menu):
         self.f1.x = 300
         self.f2.x = self.client.resolution[0] - 300
         self.f2.facing = 'left'
-
-        self.winner = None
-        self.win_banner_opacity = 0
-        self.win_banner_delay = 0
-    
-    def _setup_variables(self):
-        self.bullet_time = False
-        self.bullet_time_elapsed = 0
     
     def get_fight_data(self, select_menu):
         self.f1.fighter_type = select_menu.f1_selection
@@ -532,12 +545,15 @@ class FightMenu(Menu):
 
         self.bg = _Settings.BGS[select_menu.selected_bg]
 
-    def _check_victory(self):
-        return 0
-    
     def update(self, events: list[pg.Event], dt: float):
-        if self.winner is None:
+        if (
+            self.split_screen_countdown <= 0 and 
+            self.winner is None
+        ):
             self.f1.input(self.client.keybinds['f1'], events)
+        elif self.split_screen_countdown > 0:
+            if self.transition_phase == 0:
+                self.split_screen_countdown -= dt
         else:
             self.win_banner_opacity = np.minimum(self.win_banner_opacity + dt, 1)
             self.win_banner_delay += dt
@@ -622,6 +638,99 @@ class FightMenu(Menu):
             style='center'
         )
 
+        if self.split_screen_countdown > 0:
+            pg.draw.polygon(
+                self.client.displays[_Settings.DEFAULT_DISPLAY],
+                (0,0,0),
+                [[0,0],
+                 [0,self.client.resolution[1]],
+                 [self.client.resolution[0] * 3 / 4, self.client.resolution[1] / 2]]
+            )
+            pg.draw.polygon(
+                self.client.displays[_Settings.DEFAULT_DISPLAY],
+                (0,0,0),
+                [[self.client.resolution[0],0],
+                 [self.client.resolution[0],self.client.resolution[1]],
+                 [self.client.resolution[0] / 4, self.client.resolution[1] / 2]]
+            )
+
+            sprite, accessory = get_splash(
+                self.client.character_assets,
+                self.client.accessory_assets,
+                self.f1.fighter_type,
+                'right'
+            )
+
+            drawbox = sprite.get_rect()
+            drawbox.centerx = 50 + self.client.resolution[0] / 8
+            drawbox.centery = self.client.resolution[1] / 2
+
+            self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+                sprite,
+                drawbox
+            )
+            if accessory is not None:
+                self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+                    accessory,
+                    drawbox
+                )
+
+            sprite, accessory = get_splash(
+                self.client.character_assets,
+                self.client.accessory_assets,
+                self.f2.fighter_type,
+                'left'
+            )
+
+            drawbox = sprite.get_rect()
+            drawbox.centerx = self.client.resolution[0] * 7 / 8
+            drawbox.centery = self.client.resolution[1] / 2
+
+            self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+                sprite,
+                drawbox
+            )
+            if accessory is not None:
+                self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+                    accessory,
+                    drawbox
+                )
+            
+            self.client.font.render(
+                self.client.displays[_Settings.DEFAULT_DISPLAY],
+                'vs',
+                *(np.array(self.client.resolution) / 2 + np.array([5,5])),
+                (200,100,0),
+                100,
+                style='center'
+            )
+            self.client.font.render(
+                self.client.displays[_Settings.DEFAULT_DISPLAY],
+                'vs',
+                *(np.array(self.client.resolution) / 2 - np.array([5,5])),
+                (200,0,100),
+                100,
+                style='center'
+            )
+            self.client.font.render(
+                self.client.displays[_Settings.DEFAULT_DISPLAY],
+                'vs',
+                *(np.array(self.client.resolution) / 2),
+                (255,0,0),
+                100,
+                style='center'
+            )
+            
+                
+            self.client.font.render(
+                self.client.displays[_Settings.DEFAULT_DISPLAY],
+                f'{int(np.ceil(self.split_screen_countdown))}',
+                *(np.array(self.client.resolution) / 2),
+                (255,255,255),
+                50,
+                style='center'
+            )
+
         if self.winner is not None:
             banner = pg.Surface((self.client.resolution[0], 100))
             banner.fill((0,0,0))
@@ -636,9 +745,9 @@ class FightMenu(Menu):
             banner.set_alpha(self.win_banner_opacity * 255)
             self.client.displays[_Settings.DEFAULT_DISPLAY].blit(banner, (0, self.client.resolution[1] / 2 - 50))
 
-        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
-            self.client.cursor, pg.mouse.get_pos()
-        )
+        # self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+        #     self.client.cursor, pg.mouse.get_pos()
+        # )
 
         return displays_to_render
 
