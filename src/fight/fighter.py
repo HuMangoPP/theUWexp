@@ -13,7 +13,7 @@ class _Settings:
     X_SPD = 300
     JUMP_SPEED = -400
     DASH_SPEED = 1000
-    DASH_SLOW = 1250
+    DASH_SLOW = 2000
     SQUASH_SPEED = 5
     XACC = 1500
     YACC = 980
@@ -359,6 +359,12 @@ class Fighter:
                 
                 if event.key == keybinds['dash']:
                     orientation = 1 if self.facing == 'right' else -1
+                    for dir_input in self.direction_inputs:
+                        if dir_input == 'left':
+                            orientation = -1
+                        elif dir_input == 'right':
+                            orientation = 1
+
                     self.dashing = True
                     self.xvel = _Settings.DASH_SPEED * orientation
                     if 'up' in self.direction_inputs:
@@ -367,7 +373,7 @@ class Fighter:
 
                     self.dash_particles['boom'].create_new_particles(
                         *self.drawbox.center,
-                        1 if self.facing == 'right' else 0
+                        1 if self.facing == 'right' else -1
                     )
                     self.dash_particles['bolt'].create_new_particles(*self.drawbox.center, orientation, 0)
                 
@@ -407,7 +413,7 @@ class Fighter:
             self.attack_input = None
         
         if self.dashing:
-            orientation = 1 if self.facing == 'right' else -1
+            orientation = 1 if self.xvel > 0 else -1
             self.xvel -= _Settings.DASH_SLOW * dt * orientation
             if orientation > 0 and self.xvel <= _Settings.X_SPD:
                 self.dashing = False
@@ -417,7 +423,6 @@ class Fighter:
             if self.movement_inputs[-1] == 'right':
                 if (
                     not self.attack.active and 
-                    self.y >= _Settings.GROUND_LEVEL and
                     not self.dashing
                 ):
                     self.facing = 'right'
@@ -428,7 +433,6 @@ class Fighter:
             else:
                 if (
                     not self.attack.active and 
-                    self.y >= _Settings.GROUND_LEVEL and
                     not self.dashing
                 ):
                     self.facing = 'left'
@@ -446,14 +450,13 @@ class Fighter:
                 if self.xvel > 0:
                     self.xvel = 0
 
-        if not self.attack.active:
-            self.x += self.xvel * dt
-            self.y += self.yvel * dt
-            if self.y >= _Settings.GROUND_LEVEL:
-                self.y = _Settings.GROUND_LEVEL
-                self.yvel = 0
-            else:
-                self.yvel += _Settings.YACC * dt
+        self.x += self.xvel * dt
+        self.y += self.yvel * dt
+        if self.y >= _Settings.GROUND_LEVEL:
+            self.y = _Settings.GROUND_LEVEL
+            self.yvel = 0
+        else:
+            self.yvel += _Settings.YACC * dt
         
         self.x += self.kbx * dt
         self.y += self.kby * dt
