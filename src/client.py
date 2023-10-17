@@ -103,7 +103,7 @@ class Client:
             **character_assets
         }
         self.accessory_assets = {
-            **self.character_assets,
+            **self.accessory_assets,
             **accessory_assets
         }
         attack_assets = load_attack_assets(scale=3, progress=self._asset_load_progress)
