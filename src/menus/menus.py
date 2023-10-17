@@ -364,7 +364,7 @@ class SelectMenu(Menu):
         ]
 
         self.split_screen_countdown = 3
-        self.split_screen_sliding = 2
+        self.split_screen_sliding = 1
         self.split_screen_offset = self.client.resolution[0]
     
     def reset_meta_data(self):
@@ -374,7 +374,7 @@ class SelectMenu(Menu):
         self.currently_picking = 1
 
         self.split_screen_countdown = 3
-        self.split_screen_sliding = 2
+        self.split_screen_sliding = 1
         self.split_screen_offset = self.client.resolution[0]
 
     def update(self, events: list[pg.Event], dt: float):
@@ -404,9 +404,10 @@ class SelectMenu(Menu):
                 if (
                     event.key == pg.K_RETURN and 
                     self.f1_selection is not None and
-                    self.f2_selection is not None
+                    self.f2_selection is not None and
+                    self.split_screen_sliding >= 1
                 ):
-                    self.split_screen_sliding = 1.99
+                    self.split_screen_sliding = 0.99
                 if event.key == pg.K_1:
                     self.currently_picking = 1
                 if event.key == pg.K_2:
@@ -416,13 +417,13 @@ class SelectMenu(Menu):
             self.split_screen_countdown -= dt
             if self.split_screen_countdown < 0:
                 self.transition_phase = 1
-        elif self.split_screen_sliding < 2:
+        elif self.split_screen_sliding < 1:
             self.split_screen_sliding -= dt
             if self.split_screen_sliding < 0:
                 self.split_screen_countdown = 2.9
                 self.split_screen_offset = 0
             else:
-                self.split_screen_offset -= self.client.resolution[0] / 2 * dt
+                self.split_screen_offset -= self.client.resolution[0] * dt
 
         return super().update(events, dt)
 
@@ -739,21 +740,48 @@ class FightMenu(Menu):
         if use_effects:
             displays_to_render.insert(1, _Settings.EFFECTS_DISPLAY)
 
-        self.client.font.render(
+        pg.draw.rect(
             self.client.displays[_Settings.DEFAULT_DISPLAY],
-            f'{round(self.f1.gpa, 2)} gpa',
-            150, 50,
-            lerp(np.array([255,0,0]), np.array([0,255,0]), self.f1.gpa / 4),
-            25,
-            style='center'
+            (255,255,255),
+            pg.Rect(75, 35, 200, 50)
+        )
+        pg.draw.rect(
+            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            (255,255,255),
+            pg.Rect(self.client.resolution[0] - 275, 35, 200, 50)
         )
 
         self.client.font.render(
             self.client.displays[_Settings.DEFAULT_DISPLAY],
-            f'{round(self.f2.gpa, 2)} gpa',
+            f'wgpa',
+            175, 75,
+            (10,10,10),
+            30,
+            style='center'
+        )
+        self.client.font.render(
+            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            f'wgpa',
+            self.client.resolution[0] - 175, 75,
+            (10,10,10),
+            30,
+            style='center'
+        )
+        
+        self.client.font.render(
+            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            f'{round(self.f1.gpa, 2)}',
+            150, 50,
+            lerp(np.array([255,0,0]), np.array([0,255,0]), self.f1.gpa / 4),
+            30,
+            style='center'
+        )
+        self.client.font.render(
+            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            f'{round(self.f2.gpa, 2)}',
             self.client.resolution[0] - 150, 50,
             lerp(np.array([255,0,0]), np.array([0,255,0]), self.f2.gpa / 4),
-            25,
+            30,
             style='center'
         )
 
@@ -769,18 +797,18 @@ class FightMenu(Menu):
             )
 
         if self.winner is not None:
-            banner = pg.Surface((self.client.resolution[0], 100))
+            banner = pg.Surface((self.client.resolution[0], 200))
             banner.fill((0,0,0))
             self.client.font.render(
                 banner,
                 f'{self.winner} wins!',
-                self.client.resolution[0] / 2, 50,
+                self.client.resolution[0] / 2, banner.get_height() / 2,
                 _Settings.GOLD,
                 50,
                 style='center'
             )
             banner.set_alpha(self.win_banner_opacity * 255)
-            self.client.displays[_Settings.DEFAULT_DISPLAY].blit(banner, (0, self.client.resolution[1] / 2 - 50))
+            self.client.displays[_Settings.DEFAULT_DISPLAY].blit(banner, (0, self.client.resolution[1] / 2 - banner.get_height() / 2))
 
         # self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
         #     self.client.cursor, pg.mouse.get_pos()
