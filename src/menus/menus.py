@@ -362,7 +362,21 @@ class SelectMenu(Menu):
                 190, 20, 20
             )
         ]
+
+        self.split_screen_countdown = 3
+        self.split_screen_sliding = 2
+        self.split_screen_offset = self.client.resolution[0]
     
+    def reset_meta_data(self):
+        self.f1_selection = None
+        self.f2_selection = None
+
+        self.currently_picking = 1
+
+        self.split_screen_countdown = 3
+        self.split_screen_sliding = 2
+        self.split_screen_offset = self.client.resolution[0]
+
     def update(self, events: list[pg.Event], dt: float):
         for event in events:
             if event.type == pg.MOUSEBUTTONUP:
@@ -392,13 +406,24 @@ class SelectMenu(Menu):
                     self.f1_selection is not None and
                     self.f2_selection is not None
                 ):
-                    self.transition_phase = 1
-                    self.transition_time = 0
+                    self.split_screen_sliding = 1.99
                 if event.key == pg.K_1:
                     self.currently_picking = 1
                 if event.key == pg.K_2:
                     self.currently_picking = 2
         
+        if self.split_screen_countdown < 3:
+            self.split_screen_countdown -= dt
+            if self.split_screen_countdown < 0:
+                self.transition_phase = 1
+        elif self.split_screen_sliding < 2:
+            self.split_screen_sliding -= dt
+            if self.split_screen_sliding < 0:
+                self.split_screen_countdown = 2.9
+                self.split_screen_offset = 0
+            else:
+                self.split_screen_offset -= self.client.resolution[0] / 2 * dt
+
         return super().update(events, dt)
 
     def render(self):
@@ -484,7 +509,7 @@ class SelectMenu(Menu):
             )
 
             drawbox = sprite.get_rect()
-            drawbox.centerx = self.client.resolution[0] * 7 / 8
+            drawbox.centerx = self.client.resolution[0] * 7 / 8 - 50
             drawbox.centery = self.client.resolution[1] / 2
 
             self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
@@ -507,6 +532,90 @@ class SelectMenu(Menu):
             box
         ) for box in self.scroll_boxes]
 
+        if self.split_screen_sliding < 2:
+            pg.draw.polygon(
+                self.client.displays[_Settings.DEFAULT_DISPLAY],
+                (0,0,0),
+                -np.array([self.split_screen_offset, 0]) + np.array([[0,0],
+                 [0,self.client.resolution[1]],
+                 [self.client.resolution[0] * 3 / 4, self.client.resolution[1] / 2]])
+            )
+            pg.draw.polygon(
+                self.client.displays[_Settings.DEFAULT_DISPLAY],
+                (0,0,0),
+                np.array([self.split_screen_offset, 0]) + np.array([[self.client.resolution[0],0],
+                 [self.client.resolution[0],self.client.resolution[1]],
+                 [self.client.resolution[0] / 4, self.client.resolution[1] / 2]])
+            )
+
+            if self.split_screen_countdown < 3:
+                sprite, accessory = get_splash(
+                    self.client.character_assets,
+                    self.client.accessory_assets,
+                    self.f1_selection,
+                    'right'
+                )
+
+                drawbox = sprite.get_rect()
+                drawbox.centerx = 50 + self.client.resolution[0] / 8
+                drawbox.centery = self.client.resolution[1] / 2
+
+                self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+                    sprite,
+                    drawbox
+                )
+                if accessory is not None:
+                    self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+                        accessory,
+                        drawbox
+                    )
+
+                sprite, accessory = get_splash(
+                    self.client.character_assets,
+                    self.client.accessory_assets,
+                    self.f2_selection,
+                    'left'
+                )
+
+                drawbox = sprite.get_rect()
+                drawbox.centerx = self.client.resolution[0] * 7 / 8 - 50
+                drawbox.centery = self.client.resolution[1] / 2
+
+                self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+                    sprite,
+                    drawbox
+                )
+                if accessory is not None:
+                    self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+                        accessory,
+                        drawbox
+                    )
+                
+                self.client.font.render(
+                    self.client.displays[_Settings.DEFAULT_DISPLAY],
+                    'vs',
+                    *(np.array(self.client.resolution) / 2 + np.array([5,5])),
+                    (200,100,0),
+                    100,
+                    style='center'
+                )
+                self.client.font.render(
+                    self.client.displays[_Settings.DEFAULT_DISPLAY],
+                    'vs',
+                    *(np.array(self.client.resolution) / 2 - np.array([5,5])),
+                    (200,0,100),
+                    100,
+                    style='center'
+                )
+                self.client.font.render(
+                    self.client.displays[_Settings.DEFAULT_DISPLAY],
+                    'vs',
+                    *(np.array(self.client.resolution) / 2),
+                    (255,0,0),
+                    100,
+                    style='center'
+                )
+
         self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
             self.client.cursor, pg.mouse.get_pos()
         )
@@ -519,7 +628,7 @@ class FightMenu(Menu):
         super().__init__(client)
 
     def _load_meta_state(self):
-        self.split_screen_countdown = 3
+        self.countdown = 3
 
         self.winner = None
         self.win_banner_opacity = 0
@@ -549,13 +658,13 @@ class FightMenu(Menu):
 
     def update(self, events: list[pg.Event], dt: float):
         if (
-            self.split_screen_countdown <= 0 and 
+            self.countdown <= 0 and 
             self.winner is None
         ):
             self.f1.input(self.client.keybinds['f1'], events)
-        elif self.split_screen_countdown > 0:
+        elif self.countdown > 0:
             if self.transition_phase == 0:
-                self.split_screen_countdown -= dt
+                self.countdown -= dt
         else:
             self.win_banner_opacity = np.minimum(self.win_banner_opacity + dt, 1)
             self.win_banner_delay += dt
@@ -648,97 +757,15 @@ class FightMenu(Menu):
             style='center'
         )
 
-        if self.split_screen_countdown > 0:
-            pg.draw.polygon(
-                self.client.displays[_Settings.DEFAULT_DISPLAY],
-                (0,0,0),
-                [[0,0],
-                 [0,self.client.resolution[1]],
-                 [self.client.resolution[0] * 3 / 4, self.client.resolution[1] / 2]]
-            )
-            pg.draw.polygon(
-                self.client.displays[_Settings.DEFAULT_DISPLAY],
-                (0,0,0),
-                [[self.client.resolution[0],0],
-                 [self.client.resolution[0],self.client.resolution[1]],
-                 [self.client.resolution[0] / 4, self.client.resolution[1] / 2]]
-            )
-
-            sprite, accessory = get_splash(
-                self.client.character_assets,
-                self.client.accessory_assets,
-                self.f1.fighter_type,
-                'right'
-            )
-
-            drawbox = sprite.get_rect()
-            drawbox.centerx = 50 + self.client.resolution[0] / 8
-            drawbox.centery = self.client.resolution[1] / 2
-
-            self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
-                sprite,
-                drawbox
-            )
-            if accessory is not None:
-                self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
-                    accessory,
-                    drawbox
-                )
-
-            sprite, accessory = get_splash(
-                self.client.character_assets,
-                self.client.accessory_assets,
-                self.f2.fighter_type,
-                'left'
-            )
-
-            drawbox = sprite.get_rect()
-            drawbox.centerx = self.client.resolution[0] * 7 / 8
-            drawbox.centery = self.client.resolution[1] / 2
-
-            self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
-                sprite,
-                drawbox
-            )
-            if accessory is not None:
-                self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
-                    accessory,
-                    drawbox
-                )
-            
+        if self.countdown > 0:                
             self.client.font.render(
                 self.client.displays[_Settings.DEFAULT_DISPLAY],
-                'vs',
-                *(np.array(self.client.resolution) / 2 + np.array([5,5])),
-                (200,100,0),
-                100,
-                style='center'
-            )
-            self.client.font.render(
-                self.client.displays[_Settings.DEFAULT_DISPLAY],
-                'vs',
-                *(np.array(self.client.resolution) / 2 - np.array([5,5])),
-                (200,0,100),
-                100,
-                style='center'
-            )
-            self.client.font.render(
-                self.client.displays[_Settings.DEFAULT_DISPLAY],
-                'vs',
-                *(np.array(self.client.resolution) / 2),
-                (255,0,0),
-                100,
-                style='center'
-            )
-            
-                
-            self.client.font.render(
-                self.client.displays[_Settings.DEFAULT_DISPLAY],
-                f'{int(np.ceil(self.split_screen_countdown))}',
+                f'{int(np.ceil(self.countdown))}',
                 *(np.array(self.client.resolution) / 2),
                 (255,255,255),
-                50,
-                style='center'
+                100,
+                style='center',
+                alpha=int((self.countdown - int(self.countdown)) * 255)
             )
 
         if self.winner is not None:
