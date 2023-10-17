@@ -24,6 +24,8 @@ class Client:
     def __init__(self):
         self._pg_init()
         self._create_menus()
+        self._asset_load_progress = 0
+        self.finished_loading = False
         self._load_assets()
     
     def _pg_init(self):
@@ -39,6 +41,7 @@ class Client:
         self.ctx.blend_func = (
             mgl.SRC_ALPHA, mgl.ONE_MINUS_SRC_ALPHA
         )
+        pg.display.set_caption('The UW Experience')
 
         # get graphics engine, font, and displays
         self.graphics_engine = GraphicsEngine(self.ctx, self.resolution, './src')
@@ -65,20 +68,59 @@ class Client:
         self.current_menu = 0
     
     def _load_assets(self):
-        # cursor
-        pg.mouse.set_visible(False)
-        self.cursor = pg.image.load('./assets/ui/cursor.png').convert()
-        self.cursor.set_colorkey((0,0,0))
+        if self._asset_load_progress == 0:
+            # cursor
+            pg.mouse.set_visible(False)
+            self.cursor = pg.image.load('./assets/ui/cursor.png').convert()
+            self.cursor.set_colorkey((0,0,0))
+            
+            keybinds = load_keybinds()
+            self.keybinds = {
+                'f1': {key: pg.key.key_code(keybinds['f1'][key]) for key in keybinds['f1']},
+                'f2': {key: pg.key.key_code(keybinds['f2'][key]) for key in keybinds['f2']},
+            }
+
+            self.bgs = {}
+            self.bg_thumbs = {}
+            self.character_assets = {}
+            self.accessory_assets = {}
+            self.attack_assets = {}
+
+        bgs, bg_thumbs = load_bgs(progress=self._asset_load_progress)
+        self.bgs = {
+            **self.bgs,
+            **bgs
+        }
+        self.bg_thumbs = {
+            **self.bg_thumbs,
+            **bg_thumbs
+        }
         
         # assets
-        self.bgs, self.bg_thumbs = load_bgs()
-        self.character_assets, self.accessory_assets = load_character_assets(scale=3)
-        self.attack_assets = load_attack_assets(scale=3)
-        keybinds = load_keybinds()
-        self.keybinds = {
-            'f1': {key: pg.key.key_code(keybinds['f1'][key]) for key in keybinds['f1']},
-            'f2': {key: pg.key.key_code(keybinds['f2'][key]) for key in keybinds['f2']},
+        character_assets, accessory_assets = load_character_assets(scale=3, progress=self._asset_load_progress)
+        self.character_assets = {
+            **self.character_assets,
+            **character_assets
         }
+        self.accessory_assets = {
+            **self.character_assets,
+            **accessory_assets
+        }
+        attack_assets = load_attack_assets(scale=3, progress=self._asset_load_progress)
+        self.attack_assets = {
+            **self.attack_assets,
+            **attack_assets
+        }
+
+        if (
+            not bgs and
+            not character_assets and
+            not accessory_assets and 
+            not attack_assets
+        ):
+            self.finished_loading = True
+
+        self._asset_load_progress += 1
 
     def update(self):
         dt = self.clock.get_time() / 1000
@@ -94,11 +136,25 @@ class Client:
                     'exit': True
                 }
         
+        if not self.finished_loading:
+            self._load_assets()
+            self.menus[self.current_menu].transition_time = 0
+        
         return self.menus[self.current_menu].update(events, dt)
 
     def render(self):
         self.ctx.clear(0.08, 0.1, 0.2)
         displays_to_render = self.menus[self.current_menu].render()
+        if not self.finished_loading:
+            self.font.render(
+                self.displays['black_alpha'],
+                f"loading{'.' * (self._asset_load_progress % 3 + 1)}",
+                self.resolution[0] / 2 - 125,
+                self.resolution[1] / 2,
+                (255,255,255),
+                25,
+                style='left'
+            )
         [
             self.graphics_engine.render(
                 self.displays[display], 
@@ -130,5 +186,3 @@ class Client:
             self.render()
             self.clock.tick()
             pg.display.flip()
-
-            pg.display.set_caption(f'fps: {self.clock.get_fps()}')
