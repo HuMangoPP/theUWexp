@@ -11,48 +11,41 @@ class Boom:
         self._setup_state()
     
     def _setup_state(self):
-        self.pos = np.array([])
-        self.vel = np.array([])
-        self.lifetime = np.array([])
+        self.active = False
+        self.x, self.y = 0,0
+        self.angles = np.zeros(3)
+        self.omega = 0
+        self.rs = np.zeros(3)
     
     def create_new_particles(
         self,
         x: float, y: float,
         ox: int,
-        num_clouds: int = 10
+        num_rings: int = 3
     ):
-        new_pos = np.full((num_clouds,2), [x,y])
-        new_vel = np.array([
-            *np.column_stack([
-                -ox * np.cos(np.linspace(0, 2 * np.pi, num_clouds)),
-                np.sin(np.linspace(0, 2 * np.pi, num_clouds)),
-            ]),
-        ]) * np.hstack([
-            np.linspace(700, 500, num_clouds // 2),
-            np.linspace(500, 700, num_clouds // 2)
-        ]).reshape(-1,1)
-        new_lifetime = np.full(num_clouds, _Settings.EFFECT_LIFETIME * 2)
-
-        self.pos = np.array([*self.pos, *new_pos])
-        self.vel = np.array([*self.vel, *new_vel])
-        self.lifetime = np.array([*self.lifetime, *new_lifetime])
+        self.active = True
+        self.x, self.y = x, y
+        self.omega = np.pi / 4 * ox * 10
+        self.angles = -ox * np.arange(num_rings) * 2 * np.pi / num_rings / num_rings 
+        self.rs = (np.arange(num_rings) - num_rings + 1) * 100
     
     def animate(self, dt: float):
-        self.lifetime = self.lifetime - dt
-        mask = self.lifetime > 0
-
-        self.pos = self.pos[mask]
-        self.vel = self.vel[mask]
-        self.lifetime = self.lifetime[mask]
-
-        self.pos = self.pos + self.vel * dt
-    
+        self.angles = self.angles + self.omega * dt
+        self.rs = self.rs + 1000 * dt
+        
     def render(self, effects_display: pg.Surface):
-        [pg.draw.circle(effects_display, (50,50,50), pos, lifetime * 250)
-            for pos, lifetime in zip(self.pos, self.lifetime)]
-        if self.lifetime.size > 0:
-            return True
-        return False
+        for r, angle in zip(self.rs, self.angles):
+            if r < 200 and r > 0:
+                pg.draw.polygon(
+                    effects_display,
+                    (255,255,255),
+                    np.array([self.x, self.y]) + r * np.column_stack([
+                        np.cos(np.arange(3) * 2 * np.pi / 3 + angle),
+                        np.sin(np.arange(3) * 2 * np.pi / 3 + angle)
+                    ]),
+                    int(1000 / (1 + r))
+                )
+        return np.all(self.rs >= 200)
 
 
 class Sparks:
