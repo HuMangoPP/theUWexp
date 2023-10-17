@@ -17,7 +17,7 @@ class _Settings:
     GRAY = (150,150,150)
     LIGHT = (245,245,245)
 
-    FIGHTERS = [ # TODO read from a file
+    FIGHTERS = [
         'astro',
         'biotech',
         'civarch',
@@ -38,7 +38,7 @@ class _Settings:
         'stats'
     ]
     
-    BGS = [ # TODO read from a file
+    BGS = [
         'uwmain',
         'dp',
         'm3',
@@ -517,8 +517,6 @@ class SelectMenu(Menu):
 class FightMenu(Menu):
     def __init__(self, client):
         super().__init__(client)
-        self._load_meta_state()
-        self._load_fight_data()
 
     def _load_meta_state(self):
         self.split_screen_countdown = 3
@@ -539,6 +537,10 @@ class FightMenu(Menu):
         self.f2.x = self.client.resolution[0] - 300
         self.f2.facing = 'left'
     
+    def reset_fight_data(self):
+        self._load_meta_state()
+        self._load_fight_data()
+
     def get_fight_data(self, select_menu):
         self.f1.fighter_type = select_menu.f1_selection
         self.f2.fighter_type = select_menu.f2_selection
@@ -594,8 +596,16 @@ class FightMenu(Menu):
         
         if self.f1.gpa <= 0 and self.winner is None:
             self.winner = 'f2'
+            self.f1.movement_inputs = []
+            self.f1.direction_inputs = []
+            self.f2.movement_inputs = []
+            self.f2.direction_inputs = []
         if self.f2.gpa <= 0 and self.winner is None:
             self.winner = 'f1'
+            self.f1.movement_inputs = []
+            self.f1.direction_inputs = []
+            self.f2.movement_inputs = []
+            self.f2.direction_inputs = []
 
         return super().update(events, dt)
     

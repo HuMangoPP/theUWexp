@@ -119,6 +119,7 @@ class Client:
                     return
                 else:
                     if exit_status['goto'] == 'fight':
+                        self.menus[_Settings.MENU_MAP['fight']].reset_fight_data()
                         self.menus[_Settings.MENU_MAP['fight']].get_fight_data(self.menus[_Settings.MENU_MAP['select']])
 
                     self.current_menu = _Settings.MENU_MAP[exit_status['goto']]

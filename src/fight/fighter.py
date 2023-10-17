@@ -6,7 +6,7 @@ from .effects import Boom, Sparks, Bolt, DustCloud
 
 
 class _Settings:
-    GROUND_LEVEL = 600
+    GROUND_LEVEL = 675
     
     ANIMATION_SPEED = 12
 
