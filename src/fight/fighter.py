@@ -100,7 +100,7 @@ class Attack:
                     orientation,
                     0
                 )
-                return True
+                return np.array(self.drawbox.topleft) + np.array(overlap)
 
             # check hit with character
             overlap = mask.overlap(
@@ -111,11 +111,12 @@ class Attack:
                 fighter.hit.create_new_hit({
                     'fighter_type': self.fighter.fighter_type,
                     'attack_type': self.attack_type,
-                    'orientation': orientation
+                    'orientation': orientation,
+                    'hit_origin': np.array(self.drawbox.topleft) + np.array(overlap)
                 })
                 self.dangerous = False
 
-        return False
+        return None
 
     def animate(
         self, 
@@ -179,12 +180,13 @@ class Hit:
                 kb = _Settings.KNOCKBACK[self.hit_data['fighter_type']][self.hit_data['attack_type']]
                 self.fighter.knockback(2 * self.hit_data['orientation'] * kb, - kb)
                 self.fighter.gpa -= _Settings.DAMAGE[self.hit_data['fighter_type']][self.hit_data['attack_type']]
+                hit_origin : np.ndarray = self.hit_data['hit_origin']
 
                 self.was_hit = False
                 self.hit_data = {}
 
-                return True
-        return False
+                return hit_origin
+        return None
 
 
 class Accessory:
@@ -242,7 +244,7 @@ class Fighter:
         self.kbx = 0
         self.kby = 0
 
-        self.gpa = 0.1
+        self.gpa = 4.0
 
         self.attack = Attack(self)
         self.hit = Hit(self)

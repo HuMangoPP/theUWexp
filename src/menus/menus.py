@@ -50,7 +50,7 @@ class _Settings:
     ]
 
     BULLET_TIME_FACTOR = 10
-    BULLET_TIME = 1 / 2
+    BULLET_TIME = 1
 
 
 def lerp(v1: np.ndarray, v2: np.ndarray, t: float):
@@ -638,6 +638,10 @@ class FightMenu(Menu):
         self.bullet_time = False
         self.bullet_time_elapsed = 0
 
+        self.zoom_anchor = np.zeros(2)
+        self.zoom_amt = 1
+        self.shake_anchor = 0
+
     def _load_fight_data(self):
         self.bg = 'uwmain'
         self.f1 = Fighter()
@@ -676,14 +680,20 @@ class FightMenu(Menu):
 
         if self.bullet_time:
             self.bullet_time_elapsed -= dt
+            self.zoom_amt += dt / 2
             if self.bullet_time_elapsed <= 0:
                 self.bullet_time = False
+                self.zoom_amt = 1
+                self.shake_anchor = np.zeros(2)
             else:
                 dt /= _Settings.BULLET_TIME_FACTOR
 
-        if np.any([self.f1.update(dt), self.f2.update(dt)]):
+        hit1, hit2 = self.f1.update(dt), self.f2.update(dt)
+
+        if hit1 is not None or hit2 is not None:
             self.bullet_time = True
             self.bullet_time_elapsed = _Settings.BULLET_TIME
+            self.zoom_anchor = hit1 if hit1 is not None else hit2
         self.f1.x = np.clip(self.f1.x, 0, self.client.resolution[0])
         self.f2.x = np.clip(self.f2.x, 0, self.client.resolution[0])
         
@@ -700,9 +710,12 @@ class FightMenu(Menu):
             dt
         )
 
-        if np.any([self.f1.attack.check_hit(self.f2), self.f2.attack.check_hit(self.f1)]):
+        hit1, hit2 = self.f1.attack.check_hit(self.f2), self.f2.attack.check_hit(self.f1)
+
+        if hit1 is not None or hit2 is not None:
             self.bullet_time = True
             self.bullet_time_elapsed = _Settings.BULLET_TIME
+            self.zoom_anchor = hit1 if hit1 is not None else hit2
         
         if self.f1.gpa <= 0 and self.winner is None:
             self.winner = 'f2'
@@ -722,37 +735,40 @@ class FightMenu(Menu):
     def render(self):
         displays_to_render = super().render()
 
-        self.client.displays[_Settings.DEFAULT_DISPLAY].fill((0,0,0))
-        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(self.client.bgs[self.bg], (0,0))
+        default = pg.Surface(self.client.displays[_Settings.DEFAULT_DISPLAY].get_size())
+        effects = pg.Surface(self.client.displays[_Settings.EFFECTS_DISPLAY].get_size())
+
+        default.fill((0,0,0))
+        default.blit(self.client.bgs[self.bg], (0,0))
 
         use_effects = False 
-        self.client.displays[_Settings.EFFECTS_DISPLAY].fill((0,0,0))
+        effects.fill((0,0,0))
         use_effects = any([
             self.f1.render(
-                self.client.displays[_Settings.DEFAULT_DISPLAY],
-                self.client.displays[_Settings.EFFECTS_DISPLAY]
+                default,
+                effects
             ),
             self.f2.render(
-                self.client.displays[_Settings.DEFAULT_DISPLAY],
-                self.client.displays[_Settings.EFFECTS_DISPLAY]
+                default,
+                effects
             )
         ])
         if use_effects:
             displays_to_render.insert(1, _Settings.EFFECTS_DISPLAY)
 
         pg.draw.rect(
-            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            default,
             (255,255,255),
             pg.Rect(75, 35, 200, 50)
         )
         pg.draw.rect(
-            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            default,
             (255,255,255),
             pg.Rect(self.client.resolution[0] - 275, 35, 200, 50)
         )
 
         self.client.font.render(
-            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            default,
             f'wgpa',
             175, 75,
             (10,10,10),
@@ -760,7 +776,7 @@ class FightMenu(Menu):
             style='center'
         )
         self.client.font.render(
-            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            default,
             f'wgpa',
             self.client.resolution[0] - 175, 75,
             (10,10,10),
@@ -769,7 +785,7 @@ class FightMenu(Menu):
         )
         
         self.client.font.render(
-            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            default,
             f'{round(self.f1.gpa, 2)}',
             150, 50,
             lerp(np.array([255,0,0]), np.array([0,255,0]), self.f1.gpa / 4),
@@ -777,7 +793,7 @@ class FightMenu(Menu):
             style='center'
         )
         self.client.font.render(
-            self.client.displays[_Settings.DEFAULT_DISPLAY],
+            default,
             f'{round(self.f2.gpa, 2)}',
             self.client.resolution[0] - 150, 50,
             lerp(np.array([255,0,0]), np.array([0,255,0]), self.f2.gpa / 4),
@@ -787,7 +803,7 @@ class FightMenu(Menu):
 
         if self.countdown > 0:                
             self.client.font.render(
-                self.client.displays[_Settings.DEFAULT_DISPLAY],
+                default,
                 f'{int(np.ceil(self.countdown))}',
                 *(np.array(self.client.resolution) / 2),
                 (255,255,255),
@@ -808,11 +824,48 @@ class FightMenu(Menu):
                 style='center'
             )
             banner.set_alpha(self.win_banner_opacity * 255)
-            self.client.displays[_Settings.DEFAULT_DISPLAY].blit(banner, (0, self.client.resolution[1] / 2 - banner.get_height() / 2))
+            default.blit(banner, (0, self.client.resolution[1] / 2 - banner.get_height() / 2))
 
         # self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
         #     self.client.cursor, pg.mouse.get_pos()
         # )
+
+        if self.zoom_amt > 1:
+            zoomed = pg.Surface((np.array(default.get_size()) / self.zoom_amt).astype(int))
+            xoffset = np.clip(
+                self.zoom_anchor[0] - zoomed.get_width() / 2,
+                a_min=0,
+                a_max=default.get_width() - zoomed.get_width()
+            )
+            yoffset = np.clip(
+                self.zoom_anchor[1] - zoomed.get_height() / 2,
+                a_min=0,
+                a_max=default.get_height() - zoomed.get_height()
+            )
+            zoomed.blit(default, (-xoffset,-yoffset))
+            default = pg.transform.scale(zoomed, default.get_size())
+
+            zoomed = pg.Surface((np.array(effects.get_size()) / self.zoom_amt).astype(int))
+            xoffset = np.clip(
+                self.zoom_anchor[0] - zoomed.get_width() / 2,
+                a_min=0,
+                a_max=effects.get_width() - zoomed.get_width()
+            )
+            yoffset = np.clip(
+                self.zoom_anchor[1] - zoomed.get_height() / 2,
+                a_min=0,
+                a_max=effects.get_height() - zoomed.get_height()
+            )
+            zoomed.blit(effects, (-xoffset,-yoffset))
+            effects = pg.transform.scale(zoomed, effects.get_size())
+
+        self.client.displays[_Settings.DEFAULT_DISPLAY].blit(
+            default, (0,0)
+        )
+        if use_effects:
+            self.client.displays[_Settings.EFFECTS_DISPLAY].blit(
+                effects, (0,0)
+            )
 
         return displays_to_render
 
