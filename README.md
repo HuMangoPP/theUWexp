@@ -8,7 +8,7 @@ Square up with geese from other majors.
 
 ```
 # setup
-pip install -r -requirements.txt
+pip install -r requirements.txt
 
 # run
 python main.py
