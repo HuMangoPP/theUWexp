@@ -1,158 +1,135 @@
 import pygame as pg
 import numpy as np
-from math import ceil
 
 class Font:
-    def __init__(self, image, padding=1):
-        self.image = image
-        self.char_key = []
-        self.load_font_key('abcdefghijklmnopqrstuvwxyz1234567890.,;-?!_')
-        self.char_dict = {}
-        self.font_width = self.image.get_width()//len(self.char_key)
-        self.font_height = self.image.get_height()
-        self.padding = padding
-        self.load_font()
-    
-    def load_font_key(self, chars):
-        for char in chars:
-            self.char_key.append(char)
+    def __init__(self, path: str, charset: str = 'abcdefghijklmnopqrstuvwxyz1234567890.,;-?!_:+[]'):
+        """
+        The `Font` class contains utilities for formatting and rendering text on a `pg.Surface`.
 
-    def load_font(self):
-        for i in range(len(self.char_key)):
+        The 'Font' class takes as input:
+
+        * `font`: the font style, as a `pg.Surface`, which contains a single row of characters. Font style should be monospace
+
+        * `charset`: the set of characters, appearing in the same order as the characters in `font`
+        """
+        self.font = pg.image.load(path).convert()
+        self.charset = charset
+        self.font_width = self.font.get_width() // len(self.charset)
+        self.font_height = self.font.get_height()
+        self._load_font()
+
+    def _load_font(self):
+        """
+        Helper function to load the charmap from the font and charset
+        """
+        self.char_map = {}
+        for i, char in enumerate(self.charset):
             letter = pg.Surface((self.font_width, self.font_height))
-            letter.blit(self.image, (-i*self.font_width, 0))
-            if i%2==0:
-                letter.set_colorkey((0, 0, 255))
-            else:
-                letter.set_colorkey((255, 0, 0))
-            white = pg.Surface((self.font_width, self.font_height))
-            white.fill((255, 255, 255))
-            white.blit(letter, (0, 0))
-            white.set_colorkey((0, 0, 0))
-            self.char_dict[self.char_key[i]] = white
+            letter.blit(self.font, (-i * self.font_width, 0))
+            letter.set_colorkey((255, 255, 255))
+            self.char_map[char] = letter
+        
+    def render(
+        self,
+        display: pg.Surface,
+        text: str,
+        xy: tuple,
+        colour: tuple | list[tuple],
+        width: int,
+        style: str = 'topleft',
+        box_width: float = 0,
+        highlighting: str | None = None,
+    ):
+        """
+        Render text onto a surface.
 
-    def get_paragraph(self, text_list, max_char_per_line):
-        char_count = 0
+        * `display`: the `pg.Surface` to render onto
+
+        * `text`: the text to render
+
+        * `xy`: a coordinate of the rendering
+
+        * `colour`: the colour of the text to render, or a list of colours when `highlighting` is not `None`
+
+        * `width`: the width of the monospace for the text to render
+
+        * `style`: one of `[topleft, center]`, which specifies if the font should be rendered from the topleft or the center. Default `topleft`
+
+        * `box_width`: the width of the textbox. Text which overflows over the textbox width will wrap onto the next line. Default 0 (no wrapping)
+        
+        * `highlighting`: a string of digits corresponding to the index for `colour`, the colour that a particular character should be rendered in. Default `None` (no highlighting)
+        """
+        scale = width / self.font_width
+        height = scale * self.font_height
+        xy = np.array(xy)
+
+        lines = self._get_paragraphs(text.lower(), width, box_width)
+        char_index = 0
+        for y, line in enumerate(lines):
+            x = 0
+            offset = np.zeros(2)
+            if style == 'center':
+                num_chars = len(' '.join(line))
+                offset = np.array([width * (num_chars / 2), height / 2])
+            anchor = xy - offset
+            for word in line:
+                for char in word:
+                    letter = pg.transform.scale_by(self.char_map.get(char, self.char_map['?']), scale)
+                    coloured = pg.Surface((width, height))
+                    if highlighting is not None:
+                        coloured.fill(colour[int(highlighting[char_index])])
+                    else:
+                        coloured.fill(colour)
+                    coloured.blit(letter, (0, 0))
+                    coloured.set_colorkey((0, 0, 0))
+                    display.blit(coloured, anchor + np.array([x * width, y * height]))
+
+                    x += 1
+                    char_index += 1
+                x += 1
+                char_index += 1
+
+    def char_height(self, width: int) -> int:
+        """
+        Get the height of a character given a monospace `width`.
+        """
+        return int(np.ceil(self.font_height * width / self.font_width))
+
+    def text_width(self, text: str, width: int) -> int:
+        """
+        Get the width of text given the `text` and monospace `width`.
+        """
+        return len(text) * width
+
+    def text_height(self, text: str, width: int, box_width: int) -> int:
+        """
+        Get the height of a textbox given the `text`, the monospace `width`, and the textbox `box_width`.
+        """
+        return self.char_height(width) * len(self._get_paragraphs(text, width, box_width))
+
+    def _get_paragraphs(self, text: str, width: int, box_width: int) -> list[list[str]]:
+        """
+        Helper function to break down `text` into multiple lines based on the calculations from the monospace `width` and textbox `box_width`.
+        """
+        if box_width == 0:
+            return [text.split()]
+        max_chars_per_line = box_width // width
         lines = []
         line = []
-        for word in text_list:
-            if char_count+len(word)<=max_char_per_line:
-                char_count+=len(word)
+        char_counter = 0
+        for word in text.split():
+            if char_counter + len(word) <= max_chars_per_line:
+                char_counter += (len(word) + 1)
                 line.append(word)
-                char_count+=1
-            elif char_count==0:
-                line.append(word)
-                lines.append(line)
-                line = []
-                char_count = 0
             else:
-                lines.append(line)
-                char_count = len(word)
-                line = [word]
-                char_count+=1
-
+                if line:
+                    lines.append(line)
+                    line = [word]
+                    char_counter = len(word) + 1
+                else:
+                    lines.append([word])
+                    line = []
+                    char_counter = 0
         if line:
             lines.append(line)
         return lines
-
-    def render(self, screen, text, x, y, colour, size=0, style='left', alpha = 255, box_width=0):
-        if size==0:
-            size = self.font_width
-
-        ratio = size/self.font_width
-        scaled_height = ceil(ratio*self.font_height)
-        scaled_padding = ceil(ratio*self.padding)
-        
-        text_list = text.split(' ')
-
-        max_char_per_line = len(text)
-        if box_width!=0:
-            max_char_per_line = box_width//(size+scaled_padding)
-
-        paragraph = self.get_paragraph(text_list, max_char_per_line)
-        start_x, start_y = x, y
-
-        if style=='center':
-            start_y = y-(scaled_height+scaled_padding)*(len(paragraph)-1)/2
-        
-        for line_num, line in enumerate(paragraph):
-            char_count = 0
-            if style=='center':
-                start_x = x-(size+scaled_padding)*(len(' '.join(line))-1)/2
-            for word in line:
-                for char in word:
-                    char = char.lower()
-                    letter = self.char_dict[char]
-                    if np.all(colour != (0, 0, 0)):
-                        letter.set_colorkey((255, 255, 255))
-                        coloured_letter = pg.Surface((self.font_width, self.font_height))
-                        coloured_letter.fill(colour)
-                        coloured_letter.blit(letter, (0, 0))
-                        letter = pg.transform.scale(coloured_letter, (size, scaled_height))
-                        letter.set_colorkey((0, 0, 0))
-                        letter.set_alpha(alpha)
-                    else:
-                        temp_letter = pg.Surface((self.font_width, self.font_height))
-                        temp_letter.fill((255, 0, 0))
-                        letter.set_colorkey((0, 0, 0))
-                        temp_letter.blit(letter, (0, 0))
-                        coloured_letter = pg.Surface((self.font_width, self.font_height))
-                        coloured_letter.fill(colour)
-                        temp_letter.set_colorkey((255, 255, 255))
-                        coloured_letter.blit(temp_letter, (0, 0))
-                        letter = pg.transform.scale(coloured_letter, (size, scaled_height))
-                        letter.set_colorkey((255, 0, 0))
-                        letter.set_alpha(alpha)
-                    screen.blit(letter, 
-                                (start_x+(size+scaled_padding)*char_count-size//2, 
-                                 start_y+(scaled_height+scaled_padding)*line_num-scaled_height//2))
-                    char_count+=1
-                char_count+=1
-        
-    def text_width(self, text, size):
-        if size==0:
-            size = self.font_width
-            
-        ratio = size/self.font_width
-        scaled_padding = ceil(ratio*self.padding)
-
-        return len(text)*(size+scaled_padding)
-
-    def text_height(self, text, size=0, width=0):
-        if size==0:
-            size = self.font_width
-            
-        ratio = size/self.font_width
-        scaled_height = ceil(ratio*self.font_height)
-        scaled_padding = ceil(ratio*self.padding)
-
-        if width:
-            text_list = text.split(' ')
-            max_char_per_line = width//(size+scaled_padding)
-            char_count = 0
-            num_lines = 1
-            for word in text_list:
-                if char_count == 0:
-                    if len(word)>max_char_per_line:
-                        num_lines+=1
-                    else: 
-                        char_count+=len(word)
-                elif char_count+len(word)>max_char_per_line:
-                    num_lines+=1
-                    char_count = len(word)
-                else:
-                    char_count+=len(word)
-                char_count+=1
-            return num_lines*(scaled_height+scaled_padding)
-        else:
-            return scaled_height+scaled_padding
-
-    def char_height(self, size=0):
-        if size==0:
-            size = self.font_width
-        
-        ratio = size/self.font_width
-        scaled_height = ceil(ratio*self.font_height)
-
-        return scaled_height
-        
