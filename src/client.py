@@ -5,28 +5,27 @@ import moderngl as mgl
 from .pymgl import GraphicsEngine
 from .pyfont import Font
 
-from .util.asset_loader import load_character_assets, load_attack_assets, load_keybinds, load_bgs
+from .util import (
+    load_keybinds, 
+    load_backgrounds,
+    load_character_assets, 
+    load_accessory_assets,
+    load_attack_assets, 
+)
 
 from .menus import *
 
 
 class _Settings:
     RESOLUTION = (1280,720)
-    MENU_MAP = dict(
-        start=0,
-        main=1,
-        select=2,
-        fight=3
-    )
+    MENU_MAP = dict(start=0, main=1, select=2, fight=3)
 
 
 class Client:
     def __init__(self):
         self._pg_init()
+        self.assets = self.Assets('./assets/', self.resolution)
         self._create_menus()
-        self._asset_load_progress = 0
-        self.finished_loading = False
-        self._load_assets()
     
     def _pg_init(self):
         # init
@@ -57,74 +56,13 @@ class Client:
     def _create_menus(self):
         # menus
         self.menus : list[Menu] = [
-            StartMenu(), 
-            MainMenu(),
-            SelectMenu(),
-            FightMenu()
+            StartMenu(self.resolution, font=self.font), 
+            MainMenu(self.resolution),
+            SelectMenu(self.resolution),
+            FightMenu(self.resolution)
         ]
         self.current_menu = 0
     
-    def _load_assets(self):
-        if self._asset_load_progress == 0:
-            # cursor
-            pg.mouse.set_visible(False)
-            self.cursor = pg.image.load('./assets/ui/cursor.png').convert()
-            self.cursor.set_colorkey((0,0,0))
-            
-            # keybinds
-            keybinds = load_keybinds()
-            self.keybinds = dict(
-                f1={key: pg.key.key_code(keybinds['f1'][key]) for key in keybinds['f1']},
-                f2={key: pg.key.key_code(keybinds['f2'][key]) for key in keybinds['f2']},
-            )
-
-            # art assets
-            self.bgs = {}
-            self.bg_thumbs = {}
-            self.character_assets = {}
-            self.accessory_assets = {}
-            self.attack_assets = {}
-
-        # load bgs
-        bgs, bg_thumbs = load_bgs(progress=self._asset_load_progress)
-        self.bgs = {
-            **self.bgs,
-            **bgs
-        }
-        self.bg_thumbs = {
-            **self.bg_thumbs,
-            **bg_thumbs
-        }
-        
-        # load characters
-        character_assets, accessory_assets = load_character_assets(scale=3, progress=self._asset_load_progress)
-        self.character_assets = {
-            **self.character_assets,
-            **character_assets
-        }
-        self.accessory_assets = {
-            **self.accessory_assets,
-            **accessory_assets
-        }
-
-        # load attacks
-        attack_assets = load_attack_assets(scale=3, progress=self._asset_load_progress)
-        self.attack_assets = {
-            **self.attack_assets,
-            **attack_assets
-        }
-
-        # done loading
-        if (
-            not bgs and
-            not character_assets and
-            not accessory_assets and 
-            not attack_assets
-        ):
-            self.finished_loading = True
-
-        self._asset_load_progress += 1
-
     def update(self):
         dt = self.clock.get_time() / 1000
         events = pg.event.get()
@@ -137,31 +75,49 @@ class Client:
                 return dict(exit=True)
         
         # not done loading assets
-        if not self.finished_loading:
-            self._load_assets()
+        if not self.assets.finished_loading:
+            self.assets.load_assets()
             self.menus[self.current_menu].transition_time = 0
         
         # menu update
-        return self.menus[self.current_menu].update(dt, events)
+        update_data = {}
+        if self.current_menu == _Settings.MENU_MAP['fight']:
+            update_data = dict(
+                assets=self.assets
+            )
+        return self.menus[self.current_menu].update(dt, events, **update_data)
 
     def render(self):
         self.ctx.clear(0.08, 0.1, 0.2)
 
         # render to pg surface
-        self.menus[self.current_menu].render(self.displays, self.font)
+        [display.fill((0, 0, 0)) for display in self.displays.values()]
+        self.menus[self.current_menu].render(self.displays, self.font, self.assets)
 
         # not done loading assets
-        if not self.finished_loading:
-            num_dots = self._asset_load_progress % 3 + 1
+        if not self.assets.finished_loading:
+            font_size = 25
+            num_dots = (self.assets.progress // 5) % 3 + 1
             self.font.render(
-                self.displays['black_alpha'],
-                f"loading{'.' * num_dots}{' ' * (3 - num_dots)}",
-                np.array(self.resolution) / 2,
+                self.displays['overlay'],
+                "loading",
+                np.array(self.resolution) / 2 + np.array([-font_size * 1.5, 0]),
                 (255, 255, 255),
-                25,
+                font_size,
                 style='center'
             )
+            self.font.render(
+                self.displays['overlay'],
+                "." * num_dots,
+                np.array(self.resolution) / 2 + np.array([font_size * 2, -self.font.char_height(font_size) / 2]),
+                (255, 255, 255),
+                font_size,
+                style='topleft'
+            )
         
+        # render cursor
+        self.displays['overlay'].blit(self.assets.cursor, pg.mouse.get_pos())
+
         # render using graphics engine to screen
         [self.graphics_engine.render(
             display, 
@@ -181,8 +137,64 @@ class Client:
                     return
                 else: # menu transitions
                     self.current_menu = _Settings.MENU_MAP[exit_status['goto']]
-                    self.menus[self.current_menu].on_load()
+                    on_load_data = {}
+                    if self.current_menu == _Settings.MENU_MAP['fight']:
+                        select_menu = self.menus[_Settings.MENU_MAP['select']]
+                        on_load_data = dict(
+                            geese_data=[
+                                dict(major=select_menu.selections[0], x=100),
+                                dict(major=select_menu.selections[1], x=self.resolution[0] - 100)
+                            ],
+                            background=select_menu.selected_background
+                        )
+                    self.menus[self.current_menu].on_load(**on_load_data)
             
             # render
             self.render()
             pg.display.flip()
+
+    class Assets:
+        def __init__(self, path: str, resolution: tuple):
+            self.path = path
+
+            # progress
+            self.finished_loading = False
+            self.progress = 0
+
+            # cursor and logo
+            pg.mouse.set_visible(False)
+            self.cursor = pg.image.load(f'{self.path}/ui/cursor.png').convert()
+            self.cursor.set_colorkey((0,0,0))
+            self.uw_logo = pg.transform.scale(pg.image.load(f'{self.path}/ui/uw.png').convert_alpha(), (400, 400))
+            
+            # keybinds
+            self.keybinds = [
+                {pg.key.key_code(key): action for action, key in keybinds.items()}
+                for keybinds in load_keybinds(f'{self.path}/settings/keybinds.json')
+            ]
+
+            # art assets
+            self.backgrounds, self.background_thumbnails = load_backgrounds(f'{self.path}/backgrounds', resolution)
+            self.character_assets = {}
+            self.accessory_assets = {}
+            self.attack_assets = {}
+
+        def load_assets(self):
+            # load characters
+            character, sprites = load_character_assets(f'{self.path}/geese', self.progress, scale=3)
+            if sprites is not None:
+                self.character_assets[character] = sprites
+            accessory, sprite = load_accessory_assets(f'{self.path}/geese', self.progress, scale=3)
+            if sprite is not None:
+                self.accessory_assets[accessory] = sprite
+
+            # load attacks
+            attack, sprites = load_attack_assets(f'{self.path}/attacks', self.progress, scale=3)
+            if sprites is not None:
+                self.attack_assets[attack] = sprites
+
+            # done loading
+            if not character and not accessory and not attack:
+                self.finished_loading = True
+            else:
+                self.progress += 1
