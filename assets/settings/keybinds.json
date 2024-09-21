@@ -1,5 +1,5 @@
-{
-    "f1": {
+[
+    {
         "light": "j",
         "spec": "k",
         "dash": "l",
@@ -9,7 +9,7 @@
         "up": "space",
         "down": "s"
     },
-    "f2": {
+    {
         "light": "j",
         "spec": "k",
         "dash": "l",
@@ -19,4 +19,4 @@
         "up": "space",
         "down": "s"
     }
-}
+]
