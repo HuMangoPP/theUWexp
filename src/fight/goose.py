@@ -192,37 +192,43 @@ class Hit:
 
 
 class Accessory:
-    def __init__(self, fighter):
-        self.fighter = fighter
-        self._setup_state()
+    def __init__(self, goose):
+        self._setup_state(goose)
         self._setup_animation()
     
-    def _setup_state(self):
-        self.pos = self.fighter.pos
-        self.xvel = 0
-        self.yvel = 0
+    def _setup_state(self, goose):
+        # movement
+        self.pos = goose.pos
+
+        # logic for subpositioning
+        self.orientation = 0 if goose.facing == 'left' else 1
 
     def _setup_animation(self):
+        # sprites
         self.sprite = None
         self.drawbox = None
 
-    def animate(self, accessory_assets: dict, dt: float):
-        dx = self.fighter.x - self.x
-        dy = self.fighter.y - self.y
-        self.xvel = dx
-        self.yvel = dy
+    def animate(self, goose, dt: float, accessory_assets: dict[str, dict[str, pg.Surface]]):
+        # calculate the displacement, the accessory moves and lags behind the goose
+        disp = goose.pos - self.pos
+        self.pos = self.pos + disp * dt
 
-        self.x += (self.xvel * dt)
-        self.y += (self.yvel * dt)
+        # subpositioning logic
+        if goose.facing == 'right':
+            spd = (1 - self.orientation)
+            self.orientation = min(self.orientation + spd * dt, 1)
+        else:
+            spd = self.orientation
+            self.orientation = max(self.orientation - spd * dt, 0)
 
-        self.sprite = accessory_assets.get(self.fighter.fighter_type, {
+        self.sprite = accessory_assets.get(goose.major, {
             'right': None,
             'left': None
-        })[self.fighter.facing]
-        if self.sprite is not None:
+        })[goose.facing]
+        if self.sprite is not None and goose.drawbox is not None:
             self.drawbox = self.sprite.get_rect()
-            self.drawbox.centerx = self.x
-            self.drawbox.bottom = self.y
+            self.drawbox.centerx = self.pos[0] - lerp(-self.drawbox.width, self.drawbox.width, self.orientation) / 2
+            self.drawbox.bottom = self.pos[1] - goose.drawbox.height / 2
 
     def render(self, default_display: pg.Surface):
         if self.sprite is not None:
@@ -315,7 +321,7 @@ class Goose:
         self, 
         dt: float,
         character_assets: dict[str, dict[str, dict[str, list[pg.Surface]]]],
-        accessory_assets: dict,
+        accessory_assets: dict[str, dict[str, pg.Surface]],
         attack_assets: dict
     ):
         # if self.attack.active:
@@ -368,7 +374,7 @@ class Goose:
         self.drawbox.bottom = self.pos[1]
 
         # # animate accessories
-        # self.accessory.animate(dt, accessory_assets)
+        self.accessory.animate(self, dt, accessory_assets)
         
         # # animate attacks
         # self.attack.animate(dt, attack_assets)
@@ -516,7 +522,7 @@ class Goose:
         default.blit(self.sprite, self.drawbox)
 
         # # render accessory
-        # self.accessory.render(default)
+        self.accessory.render(default)
 
         # # render attack
         # self.attack.render(default)

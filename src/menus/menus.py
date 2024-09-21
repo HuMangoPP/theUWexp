@@ -432,7 +432,7 @@ class SelectMenu(Menu):
 
             default.blit(goose1_sprite, goose1_drawbox)
             if goose1_accessory is not None:
-                default.blit(goose1_accessory, goose1_drawbox)
+                default.blit(goose1_accessory, np.array(goose1_drawbox.center) - np.array(goose1_accessory.get_size()))
         
         # render goose sprite for player 2
         if self.selections[1] is not None:
@@ -444,7 +444,7 @@ class SelectMenu(Menu):
 
             default.blit(goose2_sprite, goose2_drawbox)
             if goose2_accessory is not None:
-                default.blit(goose2_accessory, goose2_drawbox)
+                default.blit(goose2_accessory, np.array(goose2_drawbox.center) - np.array([0, goose2_accessory.get_height()]))
 
         # render the selected bg
         default.blit(
@@ -480,12 +480,12 @@ class SelectMenu(Menu):
                 # render player 1 closeup
                 default.blit(goose1_sprite, goose1_drawbox)
                 if goose1_accessory is not None:
-                    default.blit(goose1_accessory, goose1_drawbox)
+                    default.blit(goose1_accessory, np.array(goose1_drawbox.center) - np.array(goose1_accessory.get_size()))
 
                 # render player 2 closeup
                 default.blit(goose2_sprite, goose2_drawbox)
                 if goose2_accessory is not None:
-                    default.blit(goose2_accessory, goose2_drawbox)
+                    default.blit(goose2_accessory, np.array(goose2_drawbox.center) - np.array([0, goose2_accessory.get_height()]))
                 
                 # render text
                 client.font.render(
