@@ -14,11 +14,12 @@ class _Settings:
     X_SPD = 300
     JUMP_SPEED = -400
     DASH_SPEED = 1000
-    DASH_SLOW = 2000
+    DASH_TIME = 1 / 2
     SQUASH_SPEED = 5
     X_ACC = 1500
     Y_ACC = 980
     KNOCKBACK_ACC = 500
+    ORIENTATION = dict(right=1, left=-1)
     
     HIT_DELAY = 0.1
 
@@ -453,7 +454,7 @@ class Goose:
 
         # handle movement inputs
         if self.action_inputs['dash'] == 1:
-            self.dash_time = 0.5
+            self.dash_time = _Settings.DASH_TIME
             self.action_inputs['dash'] = 0
         if self.action_inputs['jump'] == 1:
             self.vel[1] = _Settings.JUMP_SPEED
@@ -484,8 +485,8 @@ class Goose:
 
         # movement actions
         if self.dash_time > 0:
-            self.dash_time -= dt
-            self.vel[0] = lerp(0, _Settings.DASH_SPEED, self.dash_time / 0.5)
+            self.dash_time = max(self.dash_time - dt, 0)
+            self.vel[0] = _Settings.ORIENTATION[self.facing] * lerp(0, _Settings.DASH_SPEED, self.dash_time + _Settings.DASH_TIME)
 
         # move
         self.pos = self.pos + self.vel * dt
