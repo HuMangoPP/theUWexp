@@ -1,15 +1,18 @@
 import pygame as pg
 import numpy as np
 
-from ..util.transitions import transition_in, transition_out, TRANSITION_TIME
+from ..util import (
+    transition_in, 
+    transition_out, 
+    TRANSITION_TIME,
+    lerp
+)
 
 
 class _Settings:
     DEFAULT_DISPLAY = 'default'
     EFFECTS_DISPLAY = 'gaussian_blur'
     OVERLAY_DISPLAY = 'overlay'
-
-    LOGO_SIZE = (400,400)
 
     GOLD = (255, 213, 0)
     BLACK = (10, 10, 10)
@@ -37,7 +40,7 @@ class _Settings:
         'stats'
     ]
     
-    BGS = [
+    BACKGROUNDS = [
         'uwmain',
         'dp',
         'm3',
@@ -52,22 +55,22 @@ class _Settings:
     BULLET_TIME = 1
 
 
-def lerp(v1: np.ndarray, v2: np.ndarray, t: float):
-    return np.array(v1) + (np.array(v2) - np.array(v1)) * np.clip(t, a_min=0, a_max=1)
-
-
-def get_splash(character_assets: dict, accessory_assets: dict, fighter_type: str, facing: str) -> tuple[pg.Surface, pg.Surface]:
-    sprite = character_assets.get(fighter_type, character_assets['basic'])['idle'][facing][0]
-    accessory = accessory_assets.get(fighter_type, {
+def _get_splash(character_assets: dict, accessory_assets: dict, major: str, facing: str) -> tuple[pg.Surface, pg.Surface]:
+    sprite = pg.transform.scale_by(character_assets.get(major, character_assets['basic'])['idle'][facing][0], 2)
+    sprite.set_colorkey((0, 0, 0))
+    accessory = accessory_assets.get(major, {
         'right': None,
         'left': None
     })[facing]
+    if accessory is not None:
+        accessory = pg.transform.scale_by(accessory, 2)
+        accessory.set_colorkey((0, 0, 0))
 
     return sprite, accessory
 
 
 class Menu:
-    def __init__(self, resolution: tuple):
+    def __init__(self, resolution: tuple, **kwargs):
         self.resolution = resolution
         self.goto : str = None
     
@@ -79,10 +82,10 @@ class Menu:
         self.transition_phase = 2
         self.transition_time = 0
 
-    def on_load(self):
+    def on_load(self, **kwargs):
         self._on_transition()
     
-    def update(self, dt: float, events: list[pg.Event]):
+    def update(self, dt: float, events: list[pg.Event], **kwargs):
         # transition logic
         if self.transition_phase > 0:
             self.transition_time += dt
@@ -95,7 +98,6 @@ class Menu:
         return dict()
     
     def _render_overlay(self, display: pg.Surface):
-        display.fill((0, 0, 0)) # fill transparency
         if self.transition_phase == 1: # fade out
             transition_out(display, self.transition_time)
         elif self.transition_phase == 2: # "black" screen
@@ -103,40 +105,41 @@ class Menu:
         elif self.transition_phase == 3: # fade in
             transition_in(display, self.transition_time)
 
-    def render(self, displays: dict[str, pg.Surface], font):
+    def render(self, displays: dict[str, pg.Surface], font, assets, **kwargs):
         # render overlay
         self._render_overlay(displays['overlay'])
 
-        # render cursor
-        displays['overlay'].blit(self.cursor, pg.mouse.get_pos()) # TODO))
-
 
 class StartMenu(Menu):
-    def __init__(self, resolution: tuple):
+    def __init__(self, resolution: tuple, **kwargs):
         # init Menu
         super().__init__(resolution)
-        self._load_assets()
-        self._load_button_data()
+        self._load_banner_data(kwargs['font'])
         
         # override
         self.goto = 'main'
-    
-    def _load_assets(self):
-        # logo
-        self.wlogo = pg.transform.scale(pg.image.load('./assets/ui/uw.png').convert_alpha(), _Settings.LOGO_SIZE)
-        self.wlogo_rect = self.wlogo.get_rect()
-        self.wlogo_rect.center = np.array(self.client.resolution) / 2 + np.array([0,-50])
 
-    def _load_button_data(self):
+    def _load_banner_data(self, font):
         # title will fade in and out
+        self.banner = pg.Surface((self.resolution[0], 50))
+        self.banner.fill(_Settings.GRAY)
+        font.render(
+            self.banner, 
+            'press anywhere to continue', 
+            (self.resolution[0] / 2, 25),
+            (255, 255, 255), 
+            20, 
+            style='center', 
+        )
+
         self.highlight = 1
-        self.grow_dim = -1
+        self.dim_direction = -1
         self.dim_speed = 1 / 2
 
-    def on_load(self):
+    def on_load(self, **kwargs):
         super().on_load()
 
-    def update(self, dt: float, events: list[pg.Event]):
+    def update(self, dt: float, events: list[pg.Event], **kwargs):
         # handle transitions
         for event in events:
             if event.type == pg.MOUSEBUTTONUP and self.transition_phase == 0:
@@ -146,25 +149,22 @@ class StartMenu(Menu):
                 self.goto = 'main'
         
         # title highlighting
-        self.highlight += self.dim_speed * self.grow_dim * dt
+        self.highlight += self.dim_speed * self.dim_direction * dt
         if self.highlight >= 1:
             self.highlight = 1
-            self.grow_dim = -1
+            self.dim_direction = -1
         if self.highlight <= 0:
             self.highlight = 0
-            self.grow_dim = 1
+            self.dim_direction = 1
 
         return super().update(dt, events)
 
-    def render(self, displays: dict[str, pg.Surface], font):
-        # super() will render the overlay transitions if active
-        super().render(displays)
-        
+    def render(self, displays: dict[str, pg.Surface], font, assets, **kwargs):
         default = displays['default']
         default.fill(_Settings.LIGHT)
 
         # render the logo
-        default.blit(self.wlogo, self.wlogo_rect)
+        default.blit(assets.uw_logo, np.array(self.resolution) / 2 - np.array(assets.uw_logo.get_size()) / 2 - np.array([0, 50]))
         font.render(
             default,
             'the',
@@ -172,7 +172,7 @@ class StartMenu(Menu):
             [_Settings.BLACK, _Settings.GOLD],
             50,
             style='center',
-            highlighting='010'
+            highlighting='101'
         )
         font.render(
             default,
@@ -184,24 +184,15 @@ class StartMenu(Menu):
             highlighting='0101010101'
         )
         
-        # render the start button
-        pg.draw.rect(
-            self.client.displays[_Settings.DEFAULT_DISPLAY],
-            _Settings.GRAY, 
-            pg.Rect(0, self.resolution[1] - 75, self.resolution[0], 50)
-        )
-        font.render(
-            default, 
-            'press anywhere to continue', 
-            (self.resolution[0] / 2, self.resolution[1] - 50) 
-            (255, 255, 255), 
-            20, 
-            style='center', 
-        )
+        # render the banner
+        self.banner.set_alpha(int(self.highlight * 255))
+        default.blit(self.banner, (0, self.resolution[1] - 75))
+
+        super().render(displays, font, assets)
 
 
 class MainMenu(Menu):
-    def __init__(self, resolution: tuple):
+    def __init__(self, resolution: tuple, **kwargs):
         super().__init__(resolution)
         self._setup_buttons()
 
@@ -225,10 +216,10 @@ class MainMenu(Menu):
         self.training_opacity = 1
         self.options_opacity = 1
     
-    def on_load(self):
+    def on_load(self, **kwargs):
         super().on_load()
 
-    def update(self, dt: float, events: list[pg.Event]):
+    def update(self, dt: float, events: list[pg.Event], **kwargs):
         # button actions
         for event in events:
             if event.type == pg.MOUSEBUTTONUP:
@@ -250,9 +241,7 @@ class MainMenu(Menu):
 
         return super().update(dt, events)
 
-    def render(self, displays: dict[str, pg.Surface], font):
-        super().render(displays, font)
-
+    def render(self, displays: dict[str, pg.Surface], font, assets, **kwargs):
         default = displays['default']
         default.fill(_Settings.LIGHT)
 
@@ -276,7 +265,7 @@ class MainMenu(Menu):
             lerp(_Settings.GOLD, _Settings.BLACK, self.options_opacity),
             self.options_rect
         )
-        self.client.font.render(
+        font.render(
             default,
             'options',
             self.options_rect.center,
@@ -285,19 +274,17 @@ class MainMenu(Menu):
             style='center'
         )
 
+        super().render(displays, font, assets)
+
 
 class SelectMenu(Menu):
-    def __init__(self, resolution: tuple):
+    def __init__(self, resolution: tuple, **kwargs):
         super().__init__(resolution)
         # self._load_assets()
         self._setup_variables()
 
         # override
         self.goto = 'fight'
-
-    def on_load(self):
-        super().on_load()
-        self._reset_data()
     
     def _reset_data(self):
         # keep track of the geese players have selected
@@ -312,7 +299,7 @@ class SelectMenu(Menu):
         self.split_screen_offset = self.resolution[0]
     
     def _setup_variables(self):
-        self.reset_data()
+        self._reset_data()
 
         # character boxes
         self.boxes = [
@@ -327,7 +314,7 @@ class SelectMenu(Menu):
         self.box_hover = -1
 
         # bg boxes
-        self.selected_bg = 0
+        self.selected_background = 0
         self.scroll_boxes = [
             pg.Rect(
                 self.resolution[0] / 2 - (self.resolution[0] / 10 + 20) - 10,
@@ -339,7 +326,11 @@ class SelectMenu(Menu):
             )
         ]
 
-    def update(self, dt: float, events: list[pg.Event]):
+    def on_load(self, **kwargs):
+        super().on_load()
+        self._reset_data()
+
+    def update(self, dt: float, events: list[pg.Event], **kwargs):
         for event in events:
             if event.type == pg.MOUSEBUTTONUP:
                 # check player selecting a goose
@@ -351,9 +342,9 @@ class SelectMenu(Menu):
 
                 # check player select bg
                 if self.scroll_boxes[0].collidepoint(event.pos):
-                    self.selected_bg = (self.selected_bg - 1) % len(_Settings.BGS)
+                    self.selected_background = (self.selected_background - 1) % len(_Settings.BACKGROUNDS)
                 if self.scroll_boxes[1].collidepoint(event.pos):
-                    self.selected_bg = (self.selected_bg + 1) % len(_Settings.BGS)
+                    self.selected_background = (self.selected_background + 1) % len(_Settings.BACKGROUNDS)
 
             # check mouse hover
             if event.type == pg.MOUSEMOTION:
@@ -385,13 +376,11 @@ class SelectMenu(Menu):
                 self.show_countdown = True
                 self.split_screen_offset = 0
             else:
-                self.split_screen_offset -= self.client.resolution[0] * dt
+                self.split_screen_offset -= self.resolution[0] * dt
 
         return super().update(dt, events)
 
-    def render(self, displays: dict[str, pg.Surface], font):
-        super().render(displays, font)
-        
+    def render(self, displays: dict[str, pg.Surface], font, assets, **kwargs):
         default = displays[_Settings.DEFAULT_DISPLAY]
         default.fill(_Settings.LIGHT)
 
@@ -428,8 +417,8 @@ class SelectMenu(Menu):
                 _Settings.GOLD,
                 pg.Rect(
                     50, 50,
-                    self.client.resolution[0] / 4,
-                    self.client.resolution[1] - 100
+                    self.resolution[0] / 4,
+                    self.resolution[1] - 100
                 ),
                 10
             )
@@ -438,19 +427,19 @@ class SelectMenu(Menu):
                 default,
                 _Settings.GOLD,
                 pg.Rect(
-                    self.client.resolution[0] * 3 / 4 - 50, 
+                    self.resolution[0] * 3 / 4 - 50, 
                     50,
-                    self.client.resolution[0] / 4,
-                    self.client.resolution[1] - 100,
+                    self.resolution[0] / 4,
+                    self.resolution[1] - 100,
                 ),
                 10
             )
         
         # render goose sprite for player 1
         if self.selections[0] is not None:
-            sprite, accessory = get_splash( # TODO
-                self.client.character_assets,
-                self.client.accessory_assets,
+            sprite, accessory = _get_splash(
+                assets.character_assets,
+                assets.accessory_assets,
                 self.selections[0],
                 'right'
             )
@@ -470,10 +459,10 @@ class SelectMenu(Menu):
             )
         
         # render goose sprite for player 2
-        if self.f2_selection is not None:
-            sprite, accessory = get_splash( # TODO
-                self.client.character_assets,
-                self.client.accessory_assets,
+        if self.selections[1] is not None:
+            sprite, accessory = _get_splash(
+                assets.character_assets,
+                assets.accessory_assets,
                 self.selections[1],
                 'left'
             )
@@ -494,7 +483,7 @@ class SelectMenu(Menu):
 
         # render the selected bg
         default.blit(
-            self.client.bg_thumbs[_Settings.BGS[self.selected_bg]], # TODO
+            assets.background_thumbnails[_Settings.BACKGROUNDS[self.selected_background]], 
             (self.resolution[0] / 2 - self.resolution[0] / 10, 200 - self.resolution[1] / 10)
         )
         # render bg thumbnails
@@ -528,9 +517,9 @@ class SelectMenu(Menu):
             # render countdown
             if self.show_countdown:
                 # render player 1 closeup
-                sprite, accessory = get_splash( # TODO
-                    self.client.character_assets,
-                    self.client.accessory_assets,
+                sprite, accessory = _get_splash(
+                    assets.character_assets,
+                    assets.accessory_assets,
                     self.selections[0],
                     'right'
                 )
@@ -544,9 +533,9 @@ class SelectMenu(Menu):
                     default.blit(accessory, drawbox)
 
                 # render player 2 closeup
-                sprite, accessory = get_splash( # TODO
-                    self.client.character_assets,
-                    self.client.accessory_assets,
+                sprite, accessory = _get_splash(
+                    assets.character_assets,
+                    assets.accessory_assets,
                     self.selections[1],
                     'left'
                 )
@@ -560,41 +549,43 @@ class SelectMenu(Menu):
                     default.blit(accessory, drawbox)
                 
                 # render text
-                self.client.font.render(
+                font.render(
                     default,
                     'vs',
                     np.array(self.resolution) / 2 + np.array([5,5]),
-                    (200, 100, 0), # TODO
+                    (200, 100, 0), # TODO: define colours in _Settings
                     100,
                     style='center'
                 )
-                self.client.font.render(
+                font.render(
                     default,
                     'vs',
                     np.array(self.resolution) / 2 - np.array([5,5]),
-                    (200, 0, 100), # TODO
+                    (200, 0, 100), # TODO: define colours in _Settings
                     100,
                     style='center'
                 )
-                self.client.font.render(
-                    self.client.displays[_Settings.DEFAULT_DISPLAY],
+                font.render(
+                    default,
                     'vs',
-                    np.array(self.client.resolution) / 2,
-                    (255,0,0), # TODO
+                    np.array(self.resolution) / 2,
+                    (255,0,0), # TODO: define colours in _Settings
                     100,
                     style='center'
                 )
         
+        super().render(displays, font, assets)
+        
 
 class FightMenu(Menu):
-    def __init__(self, client):
-        super().__init__(client)
+    def __init__(self, resolution: tuple, **kwargs):
+        super().__init__(resolution)
 
         from ..fight import Goose
-        self.goose1 = Goose()
-        self.goose2 = Goose()
+        self.goose1 = Goose(dict(major=None, x=100))
+        self.goose2 = Goose(dict(major=None, x=self.resolution[0] - 100))
     
-    def _reset_data(self):
+    def _reset_data(self, geese_data: list[dict], background: str):
         # countdown
         self.countdown = 3
 
@@ -608,23 +599,23 @@ class FightMenu(Menu):
         self.bullet_time_elapsed = 0
 
         # zoom and shake
-        self.zoom_anchor = np.zeros(2)
-        self.zoom_amt = 1
-        self.shake_anchor = 0
+        # self.zoom_anchor = np.zeros(2)
+        # self.zoom_amt = 1
+        # self.shake_anchor = 0
         
         # bg
-        self.bg = 'uwmain'
+        self.background = _Settings.BACKGROUNDS[background]
 
         # player entities
-        self.goose1.reset('right') # TODO
-        self.goose2.reset('left')
+        self.goose1.reset_state(geese_data[0])
+        self.goose2.reset_state(geese_data[1])
 
-    def on_load(self):
+    def on_load(self, **kwargs):
         super().on_load()
 
-        self._reset_data()
+        self._reset_data(kwargs['geese_data'], kwargs['background'])
 
-    def update(self, dt: float, events: list[pg.Event]):
+    def update(self, dt: float, events: list[pg.Event], **kwargs):
         if self.winner is not None: # show winner
             self.win_banner_opacity = min(self.win_banner_opacity + dt, 1)
             self.win_banner_delay += dt
@@ -635,8 +626,8 @@ class FightMenu(Menu):
             if self.transition_phase == 0:
                 self.countdown -= dt
         else: # input
-            self.goose1.input(self.client.keybinds[0], events) # TODO
-            self.goose2.input(self.client.keybinds[1], events) 
+            self.goose1.input(events, kwargs['assets'].keybinds[0])
+            # self.goose2.input(events, kwargs['assets'].keybinds[1]) 
 
         # bullet time
         if self.bullet_time:
@@ -653,29 +644,29 @@ class FightMenu(Menu):
                 dt /= _Settings.BULLET_TIME_FACTOR
 
         # check colisions
-        self.goose1.update(dt) # TODO prevent movement outside of screen boundary
+        self.goose1.update(dt) # TODO: prevent movement outside of screen boundary
         self.goose2.update(dt)
-        hit1 = self.goose1.check_collisions()
-        hit2 = self.goose2.check_collisions()
+        hit1 = self.goose1.check_collide(self.goose2)
+        hit2 = self.goose2.check_collide(self.goose1)
 
         # enter bullet time
-        if hit1 is not None or hit2 is not None:
+        if hit1 or hit2:
             self.bullet_time = True
             self.bullet_time_elapsed = _Settings.BULLET_TIME
             # self.zoom_anchor = hit1 if hit1 is not None else hit2
         
         # animate geese
-        self.goose1.animate( # TODO
-            self.client.character_assets, 
-            self.client.accessory_assets,
-            self.client.attack_assets,
-            dt
+        self.goose1.animate(
+            dt,
+            kwargs['assets'].character_assets, 
+            kwargs['assets'].accessory_assets,
+            kwargs['assets'].attack_assets,
         )
-        self.goose2.animate( 
-            self.client.character_assets,
-            self.client.accessory_assets,
-            self.client.attack_assets,
-            dt
+        self.goose2.animate(
+            dt, 
+            kwargs['assets'].character_assets,
+            kwargs['assets'].accessory_assets,
+            kwargs['assets'].attack_assets,
         )
         
         # check winner
@@ -685,24 +676,19 @@ class FightMenu(Menu):
             self.winner = 'goose1'
         if self.winner is not None:
             # reset inputs
-            self.goose1.movement_inputs = []
-            self.goose1.direction_inputs = []
-            self.goose2.movement_inputs = []
-            self.goose2.direction_inputs = []
+            self.goose1.action_inputs = {action: 0 for action in self.goose1.action_inputs}
+            self.goose2.action_inputs = {action: 0 for action in self.goose2.action_inputs}
 
         return super().update(dt, events)
     
-    def render(self, displays: dict[str, pg.Surface], font):
-        super().render(displays, font)
-
+    def render(self, displays: dict[str, pg.Surface], font, assets, **kwargs):
         default = displays['default']
         gaussian_blur = displays['gaussian_blur']
 
         # render bg
-        default.blit(self.client.bgs[self.bg], (0,0))
+        default.blit(assets.backgrounds[self.background], (0, 0))
 
         # render geese
-        gaussian_blur.fill((0, 0, 0))
         self.goose1.render(default, gaussian_blur) 
         self.goose2.render(default, gaussian_blur)
 
@@ -720,7 +706,7 @@ class FightMenu(Menu):
         font.render(
             default,
             f'gpa {round(self.goose1.gpa, 2)}',
-            175, 75,
+            (175, 75),
             [_Settings.BLACK, lerp(np.array([255,0,0]), np.array([0,255,0]), self.goose1.gpa / 4)],
             30,
             style='center',
@@ -728,7 +714,7 @@ class FightMenu(Menu):
         )
         font.render(
             default,
-            f'gpa {round(self.f2.gpa, 2)}',
+            f'gpa {round(self.goose2.gpa, 2)}',
             (self.resolution[0] - 175, 75),
             [_Settings.BLACK, lerp(np.array([255,0,0]), np.array([0,255,0]), self.goose2.gpa / 4)],
             30,
@@ -741,7 +727,7 @@ class FightMenu(Menu):
             font.render(
                 default,
                 f'{int(np.ceil(self.countdown))}',
-                np.array(self.client.resolution) / 2,
+                np.array(self.resolution) / 2,
                 (255,255,255),
                 100,
                 style='center',
@@ -749,19 +735,20 @@ class FightMenu(Menu):
 
         # render winner
         if self.winner is not None:
-            banner = pg.Surface((self.client.resolution[0], 200))
+            banner = pg.Surface((self.resolution[0], 200))
             banner.fill((0,0,0))
             font.render(
                 banner,
                 f'{self.winner} wins!',
-                (self.client.resolution[0] / 2, banner.get_height() / 2),
+                (self.resolution[0] / 2, banner.get_height() / 2),
                 _Settings.GOLD,
                 50,
                 style='center'
             )
             banner.set_alpha(self.win_banner_opacity * 255)
-            default.blit(banner, (0, self.client.resolution[1] / 2 - banner.get_height() / 2))
+            default.blit(banner, (0, self.resolution[1] / 2 - banner.get_height() / 2))
 
+        super().render(displays, font, assets)
         # if self.zoom_amt > 1:
         #     zoomed = pg.Surface((np.array(default.get_size()) / self.zoom_amt).astype(int))
         #     xoffset = np.clip(
