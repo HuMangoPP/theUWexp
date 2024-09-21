@@ -231,7 +231,7 @@ class Accessory:
 class Goose:
     def __init__(self, goose_data: dict):
         self._setup_state(goose_data)
-        self._setup_animation()
+        self._setup_animation(goose_data)
         self._setup_input()
 
     def _setup_state(self, goose_data: dict):
@@ -254,14 +254,14 @@ class Goose:
         # goose gpa
         self.gpa = 4.0
 
-    def _setup_animation(self):
+    def _setup_animation(self, goose_data: dict):
         # get the sprite
         self.sprite = None
         self.drawbox = None
 
         # get the animation state
         self.action = 'idle'
-        self.facing = 'right'
+        self.facing = goose_data['facing']
         self.frame_index = 0
 
         # accessory

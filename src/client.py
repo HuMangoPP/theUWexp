@@ -25,7 +25,7 @@ class Client:
     def __init__(self):
         self._pg_init()
         self.assets = self.Assets('./assets/', self.resolution)
-        self._create_menus()
+        self._setup_menus()
     
     def _pg_init(self):
         # init
@@ -52,23 +52,37 @@ class Client:
 
         # clock
         self.clock = pg.time.Clock()
+        self.dt = 0
+        
+        # events
+        self.events = []
 
-    def _create_menus(self):
+    def _setup_menus(self):
         # menus
         self.menus : list[Menu] = [
-            StartMenu(self.resolution, font=self.font), 
-            MainMenu(self.resolution),
-            SelectMenu(self.resolution),
-            FightMenu(self.resolution)
+            StartMenu(self), 
+            MainMenu(self),
+            SelectMenu(self),
+            FightMenu(self)
         ]
         self.current_menu = 0
     
+    def get_fight_data(self):
+        select_menu = self.menus[_Settings.MENU_MAP['select']]
+        return dict(
+            geese_data=[
+                dict(major=select_menu.selections[0], x=100, facing='right'),
+                dict(major=select_menu.selections[1], x=self.resolution[0] - 100, facing='left')
+            ],
+            background=select_menu.selected_background
+        )
+
     def update(self):
-        dt = self.clock.get_time() / 1000
-        events = pg.event.get()
+        self.dt = self.clock.get_time() / 1000
+        self.events = pg.event.get()
 
         # quit client
-        for event in events:
+        for event in self.events:
             if event.type == pg.QUIT:
                 return dict(exit=True)
             if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
@@ -80,19 +94,14 @@ class Client:
             self.menus[self.current_menu].transition_time = 0
         
         # menu update
-        update_data = {}
-        if self.current_menu == _Settings.MENU_MAP['fight']:
-            update_data = dict(
-                assets=self.assets
-            )
-        return self.menus[self.current_menu].update(dt, events, **update_data)
+        return self.menus[self.current_menu].update(self)
 
     def render(self):
         self.ctx.clear(0.08, 0.1, 0.2)
 
         # render to pg surface
         [display.fill((0, 0, 0)) for display in self.displays.values()]
-        self.menus[self.current_menu].render(self.displays, self.font, self.assets)
+        self.menus[self.current_menu].render(self)
 
         # not done loading assets
         if not self.assets.finished_loading:
@@ -126,7 +135,7 @@ class Client:
     
     def run(self):
         # on load
-        self.menus[self.current_menu].on_load()
+        self.menus[self.current_menu].on_load(self)
         while True:
             # update
             exit_status = self.update()
@@ -137,17 +146,7 @@ class Client:
                     return
                 else: # menu transitions
                     self.current_menu = _Settings.MENU_MAP[exit_status['goto']]
-                    on_load_data = {}
-                    if self.current_menu == _Settings.MENU_MAP['fight']:
-                        select_menu = self.menus[_Settings.MENU_MAP['select']]
-                        on_load_data = dict(
-                            geese_data=[
-                                dict(major=select_menu.selections[0], x=100),
-                                dict(major=select_menu.selections[1], x=self.resolution[0] - 100)
-                            ],
-                            background=select_menu.selected_background
-                        )
-                    self.menus[self.current_menu].on_load(**on_load_data)
+                    self.menus[self.current_menu].on_load(self)
             
             # render
             self.render()
