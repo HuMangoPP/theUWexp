@@ -3,168 +3,128 @@ import os
 import json
 
 
-def load_keybinds(path='./assets/player_settings'):
-    keybinds = {}
-    with open(os.path.join(path, 'keybinds.json')) as saved_bindings:
-        keybinds = json.load(saved_bindings)
+def load_keybinds(path: str) -> list[dict[str, str]]:
+    keybinds = []
+    with open(path) as saved_keybinds:
+        keybinds = json.load(saved_keybinds)
     return keybinds
 
 
-def generate_frames(spritesheet: pg.Surface, num_frames: int, scale: float) -> dict[str, list[pg.Surface]]:
-    right = []
-    width = spritesheet.get_width() // num_frames
-    height = spritesheet.get_height()
+def load_backgrounds(path: str, scale_to: tuple) -> tuple[dict[str, pg.Surface], dict[str, pg.Surface]]:
+    backgrounds = {}
+    for filename in os.listdir(path):
+        background_name = filename[:-4]
+        backgrounds[background_name] = pg.transform.scale(
+            pg.image.load(os.path.join(path, filename)).convert(), 
+            scale_to
+        )
+    
+    background_thumbnails = {}
+    for name, bg in backgrounds.items():
+        background_thumbnails[name] = pg.transform.scale_by(bg, 1 / 5)
+    
+    return backgrounds, background_thumbnails
 
+
+def _get_frames(spritesheet: pg.Surface, num_frames: int) -> list[pg.Surface]:
+    frames = []
+    frame_width = spritesheet.get_width() // num_frames
+    frame_height = spritesheet.get_height()
     for i in range(num_frames):
-        frame = pg.Surface((width,height))
-        frame.blit(spritesheet, (-i * width, 0))
-        frame = pg.transform.scale(frame, (width * scale, height * scale))
-        frame.set_colorkey((0,0,0))
-        right.append(frame)
+        frame = pg.Surface((frame_width, frame_height))
+        frame.blit(spritesheet, (-i * frame_width, 0))
+        frame.set_colorkey((0, 0, 0))
+        frames.append(frame)
+    return frames
     
-    left = [pg.transform.flip(frame, True, False) for frame in right]
+
+def _load_spritesheet(path: str) -> dict[str, list[pg.Surface]]:
+    sprites = {}
+    for filename in os.listdir(path):
+        spritesheet_name = filename[:-4].split('-')[0]
+        num_frames = int(filename[:-4].split('-')[1])
+        sprites[spritesheet_name] = _get_frames(pg.image.load(os.path.join(path, filename)).convert(), num_frames)
+    return sprites
+
+
+def _overlay_frames(base: dict[str, list[pg.Surface]], overlay: dict[str, list[pg.Surface]]) -> dict[str, list[pg.Surface]]:
+    sprites = {}
+    for spritesheet_name, base_frames in base.items():
+        overlay_frames = overlay[spritesheet_name]
+        frames = []
+        for base_frame, overlay_frame in zip(base_frames, overlay_frames):
+            frame = pg.Surface(base_frame.get_size())
+            frame.set_colorkey((0, 0, 0))
+            frame.blit(base_frame, (0, 0))
+            frame.blit(overlay_frame, (0, 0))
+            frames.append(frame)
+        sprites[spritesheet_name] = frames
+    return sprites
+
+
+def _scale_frames(sprites: dict[str, list[pg.Surface]], scale: float):
     return {
-        'right': right,
-        'left': left,
+        spritesheet_name: [pg.transform.scale_by(frame, scale) for frame in frames]
+        for spritesheet_name, frames in sprites.items()
     }
 
 
-def generate_frame(frame: pg.Surface, scale: float) -> dict[str, pg.Surface]:
-    frame = pg.transform.scale(frame, (frame.get_width() * scale, frame.get_height() * scale))
-    frame.set_colorkey((0,0,0))
+def _flip_frames_and_set_colorkey(frames: list[pg.Surface]):
+    for frame in frames:
+        flipped_frame = pg.transform.flip(frame, flip_x=True, flip_y=False)
+        flipped_frame.set_colorkey((0, 0, 0))
+        yield flipped_frame
+
+
+def _flip_frames(sprites: dict[str, list[pg.Surface]]) -> dict[str, dict[str, list[pg.Surface]]]:
     return {
-        'right': frame,
-        'left': pg.transform.flip(frame, True, False)
+        spritesheet_name: dict(
+            right=frames,
+            left=[frame for frame in _flip_frames_and_set_colorkey(frames)]
+        )
+        for spritesheet_name, frames in sprites.items()
     }
 
 
-def load_character_assets(path='./assets/fighters', scale: float = 1, progress: int = -1):
-    basic_spritesheet = {
-        filename[:-4]: pg.image.load(os.path.join(path, 'basic', filename)).convert()
-        for filename in os.listdir(os.path.join(path, 'basic'))
-        if filename[-3:] == 'png'
-    }
-    if progress < 0:
-        spritesheets = {}
-        accessories = {}
-        for character_type in os.listdir(path):
-            if not os.path.isdir(os.path.join(path, character_type)):
-                continue
-            if character_type == 'basic':
-                spritesheets['basic'] = {
-                    file_data.split('-')[0]: generate_frames(spritesheet, int(file_data.split('-')[1]), scale)
-                    for file_data, spritesheet in basic_spritesheet.items()
-                }
-            filenames = os.listdir(os.path.join(path, character_type))
-            filenames = [filename for filename in filenames if filename[-3:] == 'png']
-            if len(filenames) == 1:
-                accessories[character_type] = generate_frame(pg.image.load(os.path.join(path, character_type, filenames[0])).convert(), scale)
-            else:
-                actions = {}
-                for filename in filenames:
-                    file_data = filename[:-4]
-                    spritesheet = basic_spritesheet[file_data].copy()
-                    overlay = pg.image.load(os.path.join(path, character_type, filename)).convert()
-                    overlay.set_colorkey((0,0,0))
-                    spritesheet.blit(overlay, (0,0))
-                    actions[file_data.split('-')[0]] = generate_frames(spritesheet, int(file_data.split('-')[1]), scale)
-                spritesheets[character_type] = actions
-
-        return spritesheets, accessories
-    
-    character_types = os.listdir(path)
-    if progress >= len(character_types):
-        return {}, {}
-    character_types = character_types[progress:]
-    for character_type in character_types:
-        if not os.path.isdir(os.path.join(path, character_type)):
-            continue
-        if character_type == 'basic':
-            return {'basic': {
-                file_data.split('-')[0]: generate_frames(spritesheet, int(file_data.split('-')[1]), scale)
-                for file_data, spritesheet in basic_spritesheet.items()
-            }}, {}
-        filenames = os.listdir(os.path.join(path, character_type))
-        filenames = [filename for filename in filenames if filename[-3:] == 'png']
-        if len(filenames) == 1:
-            return {}, {
-                character_type: generate_frame(pg.image.load(os.path.join(path, character_type, filenames[0])).convert(), scale)
-            }
-        actions = {}
-        for filename in filenames:
-            file_data = filename[:-4]
-            spritesheet = basic_spritesheet[file_data].copy()
-            overlay = pg.image.load(os.path.join(path, character_type, filename)).convert()
-            overlay.set_colorkey((0,0,0))
-            spritesheet.blit(overlay, (0,0))
-            actions[file_data.split('-')[0]] = generate_frames(spritesheet, int(file_data.split('-')[1]), scale)
-        return {character_type: actions}, {}
-    return {}, {}
+def load_character_assets(path: str, progress: int, scale: float = 1):
+    basic_goose_sprites = _load_spritesheet(os.path.join(path, 'basic'))
+    majors = os.listdir(path)
+    if progress >= len(majors):
+        return None, None
+    major = majors[progress]
+    if major == 'basic':
+        goose_sprites = _scale_frames(basic_goose_sprites, scale)
+        return major, _flip_frames(goose_sprites)
+    elif len(os.listdir(os.path.join(path, major))) > 1:
+        goose_overlay_sprites = _load_spritesheet(os.path.join(path, major))
+        goose_sprites = _flip_frames(_scale_frames(_overlay_frames(basic_goose_sprites, goose_overlay_sprites), scale))
+        return major, goose_sprites
+    return major, None
 
 
-def load_attack_assets(path='./assets/attacks', scale: float = 1, progress: int = -1):
-    if progress < 0:
-        spritesheets = {}
-        for character_type in os.listdir(path):
-            if not os.path.isdir(os.path.join(path, character_type)):
-                continue
-            attack_sprites = {}
-            for filename in os.listdir(os.path.join(path, character_type)):
-                if filename[-3:] == 'png':
-                    file_data = filename[:-4].split('-')
-                    attack_sprites[file_data[0]] = generate_frames(
-                        pg.image.load(os.path.join(path, character_type, filename)).convert(), 
-                        int(file_data[1]),
-                        scale
-                    )
-            spritesheets[character_type] = attack_sprites
-            
-        return spritesheets
-    
-    character_types = os.listdir(path)
-    if progress >= len(character_types):
-        return {}
-    character_types = character_types[progress:]
-    for character_type in character_types:
-        if not os.path.isdir(os.path.join(path, character_type)):
-            continue
-        attack_sprites = {}
-        for filename in os.listdir(os.path.join(path, character_type)):
-            if filename[-3:] == 'png':
-                file_data = filename[:-4].split('-')
-                attack_sprites[file_data[0]] = generate_frames(
-                    pg.image.load(os.path.join(path, character_type, filename)).convert(), 
-                    int(file_data[1]),
-                    scale
-                )
-        return {
-            character_type: attack_sprites
-        }
-    return {}
+def load_accessory_assets(path: str, progress: int, scale: float = 1):
+    majors = os.listdir(path)
+    if progress >= len(majors):
+        return None, None
+    major = majors[progress]
+    if len(os.listdir(os.path.join(path, major))) == 1:
+        accessory_sprite = pg.transform.scale_by(pg.image.load(os.path.join(path, major, f'{major}.png')), scale)
+        accessory_sprite.set_colorkey((0, 0, 0))
+        flipped_sprite = pg.transform.flip(accessory_sprite, flip_x=True, flip_y=False)
+        flipped_sprite.set_colorkey((0, 0, 0))
+        return major, dict(
+            right=accessory_sprite,
+            left=flipped_sprite
+        )
+    return major, None
 
 
-def load_bgs(path='./assets/backgrounds', size: tuple = (1280,720), progress: int = -1):
-    if progress < 0:
-        bgs = {}
-        for filename in os.listdir(path):
-            if filename[-3:] == 'png':
-                bgs[filename[:-4]] = pg.transform.scale(pg.image.load(os.path.join(path, filename)).convert(), size)
-        
-        thumbnails = {}
-        for name, bg in bgs.items():
-            thumbnails[name] = pg.transform.scale(bg, (size[0] // 5, size[1] // 5))
-        
-        return bgs, thumbnails
-    
-    filenames = os.listdir(path)
-    if progress >= len(filenames):
-        return {}, {}
-    filenames = filenames[progress:]
-    for filename in filenames:
-        if filename[-3:] == 'png':
-            bg = pg.transform.scale(pg.image.load(os.path.join(path, filename)).convert(), size)
-            return (
-                {filename[:-4]: bg},
-                {filename[:-4]: pg.transform.scale(bg, (size[0] // 5, size[1] // 5))}
-            )
-    return {}, {}
+def load_attack_assets(path: str, progress: int, scale: float = 1):
+    majors = [major for major in os.listdir(path) if os.path.isdir(os.path.join(path, major))]
+    if progress >= len(majors):
+        return None, None
+    major = majors[progress]
+    if len(os.listdir(os.path.join(path, major))) > 0:
+        sprites = _flip_frames(_scale_frames(_load_spritesheet(os.path.join(path, major)), scale))
+        return major, sprites
+    return major, None

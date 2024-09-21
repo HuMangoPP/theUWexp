@@ -2,6 +2,7 @@ import pygame as pg
 
 TRANSITION_TIME = 0.5
 
+
 def transition_out(overlay: pg.Surface, transition_time: float):
     width, height = overlay.get_size()
     transition_progress = 1.25 * transition_time / TRANSITION_TIME
@@ -14,6 +15,7 @@ def transition_out(overlay: pg.Surface, transition_time: float):
     ]
     overlay.fill((0, 0, 0))
     pg.draw.polygon(overlay, (10, 10, 10), points)
+
 
 def transition_in(overlay: pg.Surface, transition_time: float):
     width, height = overlay.get_size()
