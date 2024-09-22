@@ -78,9 +78,6 @@ class Client:
         )
 
     def update(self):
-        self.dt = self.clock.get_time() / 1000
-        self.events = pg.event.get()
-
         # quit client
         for event in self.events:
             if event.type == pg.QUIT:
@@ -138,8 +135,10 @@ class Client:
         self.menus[self.current_menu].on_load(self)
         while True:
             # update
-            exit_status = self.update()
+            self.dt = self.clock.get_time() / 1000
             self.clock.tick()
+            self.events = pg.event.get()
+            exit_status = self.update()
             if exit_status:
                 if exit_status['exit']:
                     pg.quit()

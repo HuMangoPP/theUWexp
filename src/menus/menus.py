@@ -51,7 +51,7 @@ class _Settings:
         'ev3'
     ]
 
-    BULLET_TIME_FACTOR = 10
+    BULLET_TIME_FACTOR = 5
     BULLET_TIME = 1
 
 

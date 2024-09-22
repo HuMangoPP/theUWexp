@@ -488,7 +488,20 @@ class Goose:
         self.knockback[signs * self.knockback <= 0] = 0
 
     def check_collide(self, rival_goose):
-        ...
+        if not rival_goose.attack.active or not rival_goose.attack.dangerous:
+            return False
+        if self.sprite is None:
+            return False
+        if rival_goose.attack.sprite is None:
+            return False
+        goose_mask = pg.mask.from_surface(self.sprite)
+        attack_mask = pg.mask.from_surface(rival_goose.attack.sprite)
+        collision = goose_mask.overlap(attack_mask, np.array(rival_goose.attack.drawbox.topleft) - np.array(self.drawbox.topleft))
+        if collision is not None:
+            self.gpa -= 0.5
+            rival_goose.attack.dangerous = False
+            return True
+        return False
 
     def render(self, default: pg.Surface, gaussian_blur: pg.Surface):
         # no sprite
