@@ -11,14 +11,13 @@ class _Settings:
     
     ANIMATION_SPEED = 12
 
-    X_SPD = 300
+    SPEED = 300
+    ACCELERATION = 1000
     JUMP_SPEED = -400
     DASH_SPEED = 1000
     DASH_TIME = 1 / 2
     SQUASH_SPEED = 5
-    X_ACC = 1500
-    Y_ACC = 980
-    KNOCKBACK_ACC = 500
+    GRAVITY = 980
     ORIENTATION = dict(right=1, left=-1)
     
     HIT_DELAY = 0.1
@@ -33,123 +32,121 @@ class _Settings:
 
 
 class Attack:
-    def __init__(self, fighter):
-        self.fighter = fighter
+    def __init__(self):
         self._setup_state()
         self._setup_animation()
     
     def _setup_state(self):
+        # the goose is attacking
         self.active = False
+        # the attack can hit the other goose
         self.dangerous = False
        
     def _setup_animation(self): 
-        self.x, self.y = 0, 0
+        # render data
+        self.pos = (0, 0)
+        self.attack_type = None
         self.sprite = None
         self.drawbox = None
 
-        self.attack_type = None
-        self.alt_attack = 0
-        self.phase = None
+        # self.alt_attack = 0
+        # self.phase = None
 
-        self.frames_elapsed = 0
-        self.startup_frames = 0
-        self.active_frames = 0
-        self.recovery_frames = 0
+        # self.frames_elapsed = 0
+        # self.startup_frames = 0
+        # self.active_frames = 0
+        # self.recovery_frames = 0
 
-        self.animation_index = 0
+        # animation
+        self.frame_index = 0
     
-    def create_new_attack(
-        self, 
-        attack_type: str,
-        x: float, y: float,
-    ):
+    def create_new_attack(self, attack_type: str, pos: tuple):
+        # set to active and dangerous
         self.active = True
         self.dangerous = True
-        self.x, self.y = x, y
 
+        # update data
+        self.pos = pos
         self.attack_type = attack_type
+
         # self.phase = 'startup'
         # self.startup_frames = _Settings.ATTACK_FRAMES[self.attack_type]['startup']
         # self.active_frames = _Settings.ATTACK_FRAMES[self.attack_type]['active']
         # self.recovery_frames = _Settings.ATTACK_FRAMES[self.attack_type]['recovery']
         # self.alt_attack = (self.alt_attack + 1) % 2
 
-        self.frames_elapsed = 0
-        self.animation_index = 0
+        # self.frames_elapsed = 0
+        # reset animatino
+        self.frame_index = 0
 
-    def check_hit(self, fighter):
-        orientation = 1 if self.fighter.facing == 'right' else -1
-        if (
-            self.dangerous and
-            self.active
-        ):
-            mask = pg.mask.from_surface(self.sprite)
-            # check parry
-            overlap = mask.overlap(
-                pg.mask.from_surface(fighter.attack.sprite),
-                np.array(fighter.attack.drawbox.topleft) - np.array(self.drawbox.topleft)
-            ) if fighter.attack.sprite is not None else None
-            if overlap is not None:
-                self.fighter.hit.parry()
-                self.dangerous = False
+    # def check_hit(self, fighter):
+    #     orientation = 1 if self.fighter.facing == 'right' else -1
+    #     if (
+    #         self.dangerous and
+    #         self.active
+    #     ):
+    #         mask = pg.mask.from_surface(self.sprite)
+    #         # check parry
+    #         overlap = mask.overlap(
+    #             pg.mask.from_surface(fighter.attack.sprite),
+    #             np.array(fighter.attack.drawbox.topleft) - np.array(self.drawbox.topleft)
+    #         ) if fighter.attack.sprite is not None else None
+    #         if overlap is not None:
+    #             self.fighter.hit.parry()
+    #             self.dangerous = False
                 
-                self.fighter.hit_particles['sparks'].create_new_particles(
-                    *(np.array(self.drawbox.topleft) + np.array(overlap)), 
-                    0, -1
-                )
-                self.fighter.hit_particles['bolt'].create_new_particles(
-                    *(np.array(self.drawbox.topleft) + np.array(overlap)), 
-                    orientation,
-                    0
-                )
-                return np.array(self.drawbox.topleft) + np.array(overlap)
+    #             self.fighter.hit_particles['sparks'].create_new_particles(
+    #                 *(np.array(self.drawbox.topleft) + np.array(overlap)), 
+    #                 0, -1
+    #             )
+    #             self.fighter.hit_particles['bolt'].create_new_particles(
+    #                 *(np.array(self.drawbox.topleft) + np.array(overlap)), 
+    #                 orientation,
+    #                 0
+    #             )
+    #             return np.array(self.drawbox.topleft) + np.array(overlap)
 
-            # check hit with character
-            overlap = mask.overlap(
-                pg.mask.from_surface(fighter.sprite),
-                np.array(fighter.drawbox.topleft) - np.array(self.drawbox.topleft)
-            )
-            if overlap is not None:
-                fighter.hit.create_new_hit({
-                    'fighter_type': self.fighter.fighter_type,
-                    'attack_type': self.attack_type,
-                    'orientation': orientation,
-                    'hit_origin': np.array(self.drawbox.topleft) + np.array(overlap)
-                })
-                self.dangerous = False
+    #         # check hit with character
+    #         overlap = mask.overlap(
+    #             pg.mask.from_surface(fighter.sprite),
+    #             np.array(fighter.drawbox.topleft) - np.array(self.drawbox.topleft)
+    #         )
+    #         if overlap is not None:
+    #             fighter.hit.create_new_hit({
+    #                 'fighter_type': self.fighter.fighter_type,
+    #                 'attack_type': self.attack_type,
+    #                 'orientation': orientation,
+    #                 'hit_origin': np.array(self.drawbox.topleft) + np.array(overlap)
+    #             })
+    #             self.dangerous = False
 
-        return None
+    #     return None
 
-    def animate(
-        self, 
-        attack_assets: dict,
-        dt: float
-    ):
+    def animate(self, goose, dt: float, attack_assets: dict[str, dict[str, dict[str, list[pg.Surface]]]]):
         if self.active:
-            self.animation_index += dt * _Settings.ANIMATION_SPEED
-            animation_length = len(attack_assets[self.fighter.fighter_type][self.attack_type][self.fighter.facing])
-            if self.animation_index >= animation_length:
-                self.animation_index = 0
+            # animate
+            self.frame_index += dt * _Settings.ANIMATION_SPEED
+            animation_length = len(attack_assets[goose.major][self.attack_type][goose.facing])
+
+            # once animation is done, the attack ends
+            if self.frame_index >= animation_length:
+                self.frame_index = 0
                 self.active = False
             
+            # get the sprite
             if self.active:
-                self.sprite = attack_assets[self.fighter.fighter_type][self.attack_type][self.fighter.facing][int(self.animation_index)]
+                self.sprite = attack_assets[goose.major][self.attack_type][goose.facing][int(self.frame_index)]
                 self.drawbox = self.sprite.get_rect()
-                self._update_drawbox()
+                self.drawbox.center = self.pos
             else:
                 self.sprite = None
 
         # [particle.animate(dt) for particle in self.particles.values()]
-
-    def _update_drawbox(self):
-        self.drawbox.center = (self.x, self.y)
     
-    def render(self, default_display: pg.Surface):
+    def render(self, default: pg.Surface):
+        # render to display
         if self.sprite is not None:
-            default_display.blit(
-                self.sprite,
-                self.drawbox
-            )
+            default.blit(self.sprite, self.drawbox)
 
 
 class Hit:
@@ -245,8 +242,8 @@ class Goose:
         self.reset_state(goose_data)
 
         # attack and hitbox
-        self.attack = Attack(self)
-        self.hit = Hit(self)
+        self.attack = Attack()
+        # self.hit = Hit(self)
 
     def reset_state(self, goose_data: dict):
         # get the goose major
@@ -297,7 +294,7 @@ class Goose:
             'right': 0,
             'left': 0,
             'light_attack': 0,
-            'heavy_attack': 0,
+            'special_attack': 0,
             'dash': 0,
         }
 
@@ -324,25 +321,13 @@ class Goose:
         accessory_assets: dict[str, dict[str, pg.Surface]],
         attack_assets: dict
     ):
-        # if self.attack.active:
-        #     if 'honk' not in self.action:
-        #         self._change_animation(f'honk_startup')
-        # elif 'honk' in self.action:
-        #     self._change_animation(f'honk_recovery')
-        # elif self.dashing:
-        #     self._change_animation('dash')
-        # elif self.y < _Settings.GROUND_LEVEL:
-        #     if self.yvel < 0:
-        #         self._change_animation('jump')
-        #     else:
-        #         self._change_animation('fall')
-        # elif self.xvel:
-        #     self._change_animation('walk')
-        # else:
-        #     self._change_animation('idle')
-
         # update animation state
-        if self.dash_time > 0:
+        if self.attack.active:
+            if 'honk' not in self.action:
+                self._change_animation(f'honk_startup')
+        elif 'honk' in self.action:
+            self._change_animation(f'honk_recovery')
+        elif self.dash_time > 0:
             self._change_animation('dash')
         elif self.pos[1] < _Settings.GROUND_LEVEL:
             if self.vel[1] < 0:
@@ -373,11 +358,11 @@ class Goose:
         self.drawbox.centerx = self.pos[0]
         self.drawbox.bottom = self.pos[1]
 
-        # # animate accessories
+        # animate accessories
         self.accessory.animate(self, dt, accessory_assets)
         
-        # # animate attacks
-        # self.attack.animate(dt, attack_assets)
+        # animate attacks
+        self.attack.animate(self, dt, attack_assets)
         
         # self.jump_particles.animate(dt)
         # [particles.animate(dt) for particles in self.dash_particles.values()]
@@ -435,28 +420,22 @@ class Goose:
 
     def update(self, dt: float):
         # handle attack inputs
-        if self.action_inputs['light_attack'] == 1 and not self.attack.active:
-            if self.accessory.drawbox is not None:
-                xy = self.accessory.drawbox.center
+        if not self.attack.active:
+            attack_direction = 's'
+            if self.action_inputs['light_attack'] == 1:
+                attack_type = 'light'
+                self.action_inputs['light_attack'] = 0
+            elif self.action_inputs['special_attack'] == 1:
+                attack_type = 'spec'
+                self.action_inputs['special_attack'] = 0
             else:
-                xy = self.drawbox.center
-            attack_type = 'side'
-            # self.attack.create_new_attack(
-            #     f'{attack_type}-light_attack',
-            #     xy
-            # )
-            self.action_inputs['light_attack'] = 0
-        elif self.action_inputs['heavy_attack'] == 1 and not self.attack.active:
-            if self.accessory.drawbox is not None:
-                xy = self.accessory.drawbox.center
-            else:
-                xy = self.drawbox.center
-            attack_type = 'side'
-            # self.attack.create_new_attack(
-            #     f'{attack_type}-heavy_attack',
-            #     xy
-            # )
-            self.action_inputs['heavy_attack'] = 0
+                attack_type = None
+            if attack_type is not None:
+                if self.accessory.drawbox is not None:
+                    xy = self.accessory.drawbox.center
+                else:
+                    xy = self.drawbox.center
+                self.attack.create_new_attack(f'{attack_direction}{attack_type}', xy)
 
         # handle movement inputs
         if self.action_inputs['dash'] == 1:
@@ -466,34 +445,32 @@ class Goose:
             self.vel[1] = _Settings.JUMP_SPEED
             self.action_inputs['jump'] = 0
         
-        if self.dash_time <= 0 and not self.attack.active:
+        if self.attack.active:
+            self.dash_time = 0
+            sign = np.sign(self.vel[0])
+            self.vel[0] = self.vel[0] - sign * _Settings.ACCELERATION * dt
+            if sign * self.vel[0] <= 0:
+                self.vel[0] = 0
+        elif self.dash_time > 0:
+            self.dash_time = max(self.dash_time - dt, 0)
+            self.vel[0] = _Settings.ORIENTATION[self.facing] * lerp(0, _Settings.DASH_SPEED, self.dash_time + _Settings.DASH_TIME)
+        else:
             is_moving = False
             if self.action_inputs['right'] == 1:
                 self.facing = 'right'
-                self.vel[0] = min(
-                    self.vel[0] + _Settings.X_ACC * dt,
-                    _Settings.X_SPD
-                )
+                self.vel[0] = min(self.vel[0] + _Settings.ACCELERATION * dt, _Settings.SPEED)
                 is_moving = True
             if self.action_inputs['left'] == 1:
                 self.facing = 'left'
-                self.vel[0] = max(
-                    self.vel[0] - _Settings.X_ACC * dt,
-                    -_Settings.X_SPD
-                )
+                self.vel[0] = max(self.vel[0] - _Settings.ACCELERATION * dt, -_Settings.SPEED)
                 is_moving = True
             
             if not is_moving:
-                sign = self.vel[0]
-                self.vel[0] = self.vel[0] - sign * _Settings.X_ACC * dt
+                sign = np.sign(self.vel[0])
+                self.vel[0] = self.vel[0] - sign * _Settings.ACCELERATION * dt
                 if sign * self.vel[0] <= 0:
                     self.vel[0] = 0
-
-        # movement actions
-        if self.dash_time > 0:
-            self.dash_time = max(self.dash_time - dt, 0)
-            self.vel[0] = _Settings.ORIENTATION[self.facing] * lerp(0, _Settings.DASH_SPEED, self.dash_time + _Settings.DASH_TIME)
-
+        
         # move
         self.pos = self.pos + self.vel * dt
 
@@ -502,12 +479,12 @@ class Goose:
             self.pos[1] = _Settings.GROUND_LEVEL
             self.vel[1] = 0
         else:
-            self.vel[1] += _Settings.Y_ACC * dt
+            self.vel[1] += _Settings.GRAVITY * dt
         
         # handle knockback movement
         self.pos = self.pos + self.knockback * dt 
         signs = np.sign(self.knockback)
-        self.knockback = self.knockback - signs * _Settings.KNOCKBACK_ACC * dt
+        self.knockback = self.knockback - signs * _Settings.ACCELERATION * dt
         self.knockback[signs * self.knockback <= 0] = 0
 
     def check_collide(self, rival_goose):
@@ -521,11 +498,11 @@ class Goose:
         # render sprite
         default.blit(self.sprite, self.drawbox)
 
-        # # render accessory
+        # render accessory
         self.accessory.render(default)
 
-        # # render attack
-        # self.attack.render(default)
+        # render attack
+        self.attack.render(default)
         # use_effects = False
         # use_effects = self.jump_particles.render(effects_display) or use_effects
         # use_effects = np.any([particles.render(effects_display) for particles in self.dash_particles.values()]) or use_effects

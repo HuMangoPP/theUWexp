@@ -1,7 +1,7 @@
 [
     {
-        "light": "j",
-        "spec": "k",
+        "light_attack": "j",
+        "special_attack": "k",
         "dash": "l",
         "jump": "w",
         "left": "a",
@@ -10,8 +10,8 @@
         "down": "s"
     },
     {
-        "light": "j",
-        "spec": "k",
+        "light_attack": "j",
+        "special_attack": "k",
         "dash": "l",
         "jump": "w",
         "left": "a",
