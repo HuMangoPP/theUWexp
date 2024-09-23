@@ -1,6 +1,8 @@
 import pygame as pg
 import numpy as np
 
+from ..util import lerp
+
 
 class _Settings:
     EFFECT_LIFETIME = 0.1
@@ -8,44 +10,37 @@ class _Settings:
 
 class Boom:
     def __init__(self):
-        self._setup_state()
+        # vfx data
+        self.lifetime = np.zeros(0)
+        self.pos = np.zeros((0,2))
     
-    def _setup_state(self):
-        self.active = False
-        self.x, self.y = 0,0
-        self.angles = np.zeros(3)
-        self.omega = 0
-        self.rs = np.zeros(3)
-    
-    def create_new_particles(
-        self,
-        x: float, y: float,
-        ox: int,
-        num_rings: int = 3
-    ):
-        self.active = True
-        self.x, self.y = x, y
-        self.omega = np.pi / 4 * ox * 10
-        self.angles = -ox * np.arange(num_rings) * 2 * np.pi / num_rings / num_rings 
-        self.rs = (np.arange(num_rings) - num_rings + 1) * 100
+    def create_particles(self, pos: np.ndarray):
+        if self.pos.size == 0:
+            self.lifetime = np.full(pos.shape[0], _Settings.EFFECT_LIFETIME)
+            self.pos = pos
+        else:
+            self.lifetime = np.hstack([self.lifetime, np.full(pos.shape[0], _Settings.EFFECT_LIFETIME)])
+            self.pos = np.vstack([self.pos, pos])
     
     def animate(self, dt: float):
-        self.angles = self.angles + self.omega * dt
-        self.rs = self.rs + 1000 * dt
+        if self.lifetime.size == 0:
+            return
+
+        # destroy vfx 
+        self.lifetime = self.lifetime - dt
+        alive = self.lifetime > 0
+        self.lifetime = self.lifetime[alive]
+        self.pos = self.pos[alive]
         
-    def render(self, effects_display: pg.Surface):
-        for r, angle in zip(self.rs, self.angles):
-            if r < 200 and r > 0:
-                pg.draw.polygon(
-                    effects_display,
-                    (255,255,255),
-                    np.array([self.x, self.y]) + r * np.column_stack([
-                        np.cos(np.arange(3) * 2 * np.pi / 3 + angle),
-                        np.sin(np.arange(3) * 2 * np.pi / 3 + angle)
-                    ]),
-                    int(1000 / (1 + r))
-                )
-        return np.all(self.rs >= 200)
+    def render(self, gaussian_blur: pg.Surface):
+        if self.lifetime.size == 0:
+            return
+
+        for lifetime, pos in zip(self.lifetime, self.pos):
+            r = lerp(150, 0, lifetime / _Settings.EFFECT_LIFETIME)
+            rect = pg.Rect(0, 0, r / 2, r)
+            rect.center = pos
+            pg.draw.ellipse(gaussian_blur, (255, 255, 255), rect, 10)
 
 
 class Sparks:

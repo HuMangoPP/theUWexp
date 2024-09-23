@@ -2,7 +2,7 @@ import pygame as pg
 import numpy as np
 import json
 
-from .effects import Boom, Sparks, Bolt, DustCloud
+from .vfx import Boom, Sparks, Bolt, DustCloud
 from ..util.math_util import lerp
 
 
@@ -271,6 +271,9 @@ class Goose:
         # accessory
         self.accessory = Accessory(self)
 
+        # particle effects
+        self.dash_particles = Boom()
+
         # self.jump_particles = DustCloud()
         # self.dash_particles = {
         #     'boom': Boom(),
@@ -364,6 +367,8 @@ class Goose:
         # animate attacks
         self.attack.animate(self, dt, attack_assets)
         
+        # animate effects
+        self.dash_particles.animate(dt)
         # self.jump_particles.animate(dt)
         # [particles.animate(dt) for particles in self.dash_particles.values()]
         # [particles.animate(dt) for particles in self.hit_particles.values()]
@@ -441,6 +446,15 @@ class Goose:
         if self.action_inputs['dash'] == 1:
             self.dash_time = _Settings.DASH_TIME
             self.action_inputs['dash'] = 0
+            
+            x = self.drawbox.centerx
+            w = self.drawbox.w
+            y = self.drawbox.bottom - self.drawbox.height / 3
+            self.dash_particles.create_particles(np.array([
+                [x, y],
+                [x - w / 4, y],
+                [x + w / 4, y]
+            ]))
         if self.action_inputs['jump'] == 1:
             self.vel[1] = _Settings.JUMP_SPEED
             self.action_inputs['jump'] = 0
@@ -516,6 +530,9 @@ class Goose:
 
         # render attack
         self.attack.render(default)
+
+        # render effects
+        self.dash_particles.render(gaussian_blur)
         # use_effects = False
         # use_effects = self.jump_particles.render(effects_display) or use_effects
         # use_effects = np.any([particles.render(effects_display) for particles in self.dash_particles.values()]) or use_effects

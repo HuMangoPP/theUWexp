@@ -10,10 +10,6 @@ from ..util import (
 
 
 class _Settings:
-    DEFAULT_DISPLAY = 'default'
-    EFFECTS_DISPLAY = 'gaussian_blur'
-    OVERLAY_DISPLAY = 'overlay'
-
     GOLD = (255, 213, 0)
     BLACK = (10, 10, 10)
     GRAY = (150, 150, 150)
@@ -381,7 +377,7 @@ class SelectMenu(Menu):
         return super().update(client)
 
     def render(self, client):
-        default = client.displays[_Settings.DEFAULT_DISPLAY]
+        default = client.displays['default']
         default.fill(_Settings.LIGHT)
 
         # title
