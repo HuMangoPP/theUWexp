@@ -443,12 +443,17 @@ class SelectMenu(Menu):
                 default.blit(goose2_accessory, np.array(goose2_drawbox.center) - np.array([0, goose2_accessory.get_height()]))
 
         # render the selected bg
-        default.blit(
-            client.assets.background_thumbnails[_Settings.BACKGROUNDS[self.selected_background]], 
-            (self.resolution[0] / 2 - self.resolution[0] / 10, 200 - self.resolution[1] / 10)
-        )
-        # render bg thumbnails
-        [pg.draw.rect(default, _Settings.GOLD, box) for box in self.scroll_boxes]
+        selected_bg = client.assets.background_thumbnails[_Settings.BACKGROUNDS[self.selected_background]]
+        rect = selected_bg.get_rect()
+        rect.center = (self.resolution[0] / 2, 200)
+        default.blit(selected_bg, rect)
+        # render scroll boxes
+        for i, box in enumerate(self.scroll_boxes):
+            pg.draw.rect(default, _Settings.GOLD, box)
+            angle_offset = (i + 1) * np.pi
+            angles = 2 * np.pi / 3 * np.arange(3) + angle_offset
+            vertices = np.array(box.center) + box.width / 3 * np.column_stack([np.cos(angles), np.sin(angles)])
+            pg.draw.polygon(default, _Settings.BLACK, vertices)
 
         # render split screen
         if self.show_split_screen:
