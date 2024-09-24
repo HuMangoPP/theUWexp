@@ -48,7 +48,7 @@ class Attack:
        
     def _setup_animation(self): 
         # render data
-        self.pos = (0, 0)
+        self.orientation = 0
         self.attack_type = None
         self.sprite = None
         self.drawbox = None
@@ -56,13 +56,13 @@ class Attack:
         # animation
         self.frame_index = 0
     
-    def create_new_attack(self, attack_type: str, pos: tuple):
+    def create_new_attack(self, orientation: str, attack_type: str):
         # set to active and dangerous
         self.active = True
         self.dangerous = True
 
         # update data
-        self.pos = pos
+        self.orientation = orientation
         self.attack_type = attack_type
 
         # reset animatino
@@ -72,7 +72,8 @@ class Attack:
         if self.active:
             # animate
             self.frame_index += dt * _Settings.ANIMATION_SPEED
-            animation_length = len(attack_assets[goose.major][self.attack_type][goose.facing])
+            # animation_length = len(attack_assets[goose.major][self.attack_type][goose.facing])
+            animation_length = 20
 
             # once animation is done, the attack ends
             if self.frame_index >= animation_length:
@@ -82,9 +83,26 @@ class Attack:
             
             # get the sprite
             if self.active:
-                self.sprite = attack_assets[goose.major][self.attack_type][goose.facing][int(self.frame_index)]
+                # white rectangle
+                self.sprite = pg.Surface((100, 50))
+                self.sprite.fill((255, 255, 255))
+                # self.sprite = attack_assets[goose.major][self.attack_type][goose.facing][int(self.frame_index)]
+                
+                # get drawbox
                 self.drawbox = self.sprite.get_rect()
-                self.drawbox.center = self.pos
+                
+                if self.attack_type[:1] == 's':
+                    self.drawbox.centery = goose.drawbox.centery
+                    if self.orientation == 'left':
+                        self.drawbox.right = goose.drawbox.centerx
+                    else:
+                        self.drawbox.left = goose.drawbox.centerx
+                elif self.attack_type[:1] == 'n':
+                    self.drawbox.centerx = goose.drawbox.centerx
+                    self.drawbox.bottom = goose.drawbox.centery
+                else:
+                    self.drawbox.centerx = goose.drawbox.centerx
+                    self.drawbox.top = goose.drawbox.centery
             else:
                 self.sprite = None
 
@@ -237,13 +255,16 @@ class Goose:
     def _setup_input(self):
         # inputs
         self.action_inputs = {
-            'no_action': 0,
             'jump': 0,
-            'right': 0,
-            'left': 0,
             'light_attack': 0,
             'special_attack': 0,
             'dash': 0,
+        }
+        self.direction_inputs = {
+            'up': 0,
+            'down': 0,
+            'left': 0,
+            'right': 0,
         }
 
     def reset_state(self, goose_data: dict):
@@ -329,31 +350,43 @@ class Goose:
         for event in events:
             if event.type == pg.KEYDOWN:
                 # get inputs
-                action = keybinds.get(event.key, 'no_action')
-                self.action_inputs[action] = 1
+                key_function = keybinds.get(event.key, 'no_action')
+                if key_function in self.action_inputs:
+                    self.action_inputs[key_function] = 1
+                if key_function in self.direction_inputs:
+                    self.direction_inputs[key_function] = 1
             if event.type == pg.KEYUP:
                 # remove inputs
-                action = keybinds.get(event.key, 'no_action')
-                self.action_inputs[action] = 0
+                key_function = keybinds.get(event.key, None)
+                if key_function in self.action_inputs:
+                    self.action_inputs[key_function] = 0
+                if key_function in self.direction_inputs:
+                    self.direction_inputs[key_function] = 0
 
     def update(self, dt: float):
         # handle attack inputs
         if not self.attack.active and self.attack.cooldown <= 0:
-            attack_direction = 's'
             if self.action_inputs['light_attack'] == 1:
-                attack_type = 'light'
+                if self.pos[1] < _Settings.GROUND_LEVEL:
+                    attack_type = 'air'
+                else:
+                    attack_type = 'light'
                 self.action_inputs['light_attack'] = 0
-            elif self.action_inputs['special_attack'] == 1:
-                attack_type = 'spec'
+            elif self.action_inputs['special_attack'] == 1 and self.pos[1] >= _Settings.GROUND_LEVEL:
+                attack_type = 'special'
                 self.action_inputs['special_attack'] = 0
             else:
                 attack_type = None
             if attack_type is not None:
-                if self.accessory.drawbox is not None:
-                    xy = self.accessory.drawbox.center
+                if self.direction_inputs['up'] == 1:
+                    attack_direction = 'n'
+                elif self.direction_inputs['down'] == 1:
+                    attack_direction = 'd'
+                elif self.direction_inputs['left'] == 1 or self.direction_inputs['right'] == 1:
+                    attack_direction = 's'
                 else:
-                    xy = self.drawbox.center
-                self.attack.create_new_attack(f'{attack_direction}{attack_type}', xy)
+                    attack_direction = 'n'
+                self.attack.create_new_attack(self.facing, f'{attack_direction}{attack_type}')
 
         # handle movement inputs
         if self.action_inputs['dash'] == 1:
@@ -372,32 +405,37 @@ class Goose:
             self.vel[1] = _Settings.JUMP_SPEED
             self.action_inputs['jump'] = 0
         
-        if self.attack.active: # prevent movement while attacking
+        can_move = True
+        can_change_direction = True
+        if self.attack.active:
             self.dash_time = 0
+            can_move = 'air' in self.attack.attack_type # prevent movement while attacking
+            can_change_direction = False
+        
+        if self.dash_time > 0: # goose is dashing
+            self.dash_time = max(self.dash_time - dt, 0)
+            self.vel[0] = _Settings.ORIENTATION[self.facing] * lerp(0, _Settings.DASH_SPEED, self.dash_time + _Settings.DASH_TIME)
+            can_move = False
+            can_change_direction = False
+        
+        # handle movement inputs
+        is_moving = False
+        if can_move:
+            if self.direction_inputs['right'] == 1:
+                if can_change_direction:
+                    self.facing = 'right'
+                self.vel[0] = min(self.vel[0] + _Settings.ACCELERATION * dt, _Settings.SPEED)
+                is_moving = True
+            if self.direction_inputs['left'] == 1:
+                if can_change_direction:
+                    self.facing = 'left'
+                self.vel[0] = max(self.vel[0] - _Settings.ACCELERATION * dt, -_Settings.SPEED)
+                is_moving = True
+        if not is_moving: # de-celerate
             sign = np.sign(self.vel[0])
             self.vel[0] = self.vel[0] - sign * _Settings.ACCELERATION * dt
             if sign * self.vel[0] <= 0:
                 self.vel[0] = 0
-        elif self.dash_time > 0: # goose is dashing
-            self.dash_time = max(self.dash_time - dt, 0)
-            self.vel[0] = _Settings.ORIENTATION[self.facing] * lerp(0, _Settings.DASH_SPEED, self.dash_time + _Settings.DASH_TIME)
-        else: 
-            is_moving = False
-            # handle movement inputs
-            if self.action_inputs['right'] == 1:
-                self.facing = 'right'
-                self.vel[0] = min(self.vel[0] + _Settings.ACCELERATION * dt, _Settings.SPEED)
-                is_moving = True
-            if self.action_inputs['left'] == 1:
-                self.facing = 'left'
-                self.vel[0] = max(self.vel[0] - _Settings.ACCELERATION * dt, -_Settings.SPEED)
-                is_moving = True
-            
-            if not is_moving: # de-celerate
-                sign = np.sign(self.vel[0])
-                self.vel[0] = self.vel[0] - sign * _Settings.ACCELERATION * dt
-                if sign * self.vel[0] <= 0:
-                    self.vel[0] = 0
         
         # move
         self.pos = self.pos + self.vel * dt
