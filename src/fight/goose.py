@@ -234,18 +234,9 @@ class Accessory:
 
 class Goose:
     def __init__(self, goose_data: dict):
-        self._setup_state(goose_data)
-        self._setup_animation(goose_data)
-        self._setup_input()
-
-    def _setup_state(self, goose_data: dict):
         self.reset_state(goose_data)
 
-        # attack and hitbox
-        self.attack = Attack()
-        # self.hit = Hit(self)
-
-    def reset_state(self, goose_data: dict):
+    def _setup_state(self, goose_data: dict):
         # get the goose major
         self.major = goose_data['major']
 
@@ -257,6 +248,10 @@ class Goose:
 
         # goose gpa
         self.gpa = 4.0
+
+        # attack and hitbox
+        self.attack = Attack()
+        # self.hit = Hit(self)
 
     def _setup_animation(self, goose_data: dict):
         # get the sprite
@@ -302,6 +297,11 @@ class Goose:
             'special_attack': 0,
             'dash': 0,
         }
+
+    def reset_state(self, goose_data: dict):
+        self._setup_state(goose_data)
+        self._setup_animation(goose_data)
+        self._setup_input()
 
     def _change_animation(self, action: str, reset: bool = False):
         # change the animation state
@@ -519,8 +519,8 @@ class Goose:
             self.gpa -= 0.5
             rival_goose.attack.dangerous = False
             angle = np.arctan2(
-                self.drawbox.centerx - rival_goose.drawbox.centerx,
-                self.drawbox.centery - rival_goose.drawbox.centery
+                rival_goose.drawbox.centerx - self.drawbox.centerx,
+                rival_goose.drawbox.centery - self.drawbox.centery
             )
             self.hit_vfx.create_vfx(self.drawbox.center, angle)
             angle = np.arctan2(
