@@ -54,12 +54,12 @@ class Sparks:
         self.pos = np.array([])
         self.angle = np.array([])
 
-    def create_vfx(self, pos: tuple, angle: float, num_particles: int = 1):
+    def create_vfx(self, pos: tuple, angle: float, num_particles: int = 2):
         # create new data arrays
         num_sparks = 2 * num_particles + 1
         new_lifetime = np.full(num_sparks, _Settings.EFFECT_LIFETIME)
         new_pos = np.full((num_sparks,2), pos)
-        new_angle = np.pi / 6 * (np.random.rand(num_sparks) * 2 - 1) + angle
+        new_angle = np.pi / 3 * (np.random.rand(num_sparks) * 2 - 1) + angle
 
         # append
         if self.lifetime.size == 0:
@@ -75,7 +75,7 @@ class Sparks:
         if self.lifetime.size == 0:
             return
         # move the sparks
-        vel = 2000 * np.column_stack([np.sin(self.angle), np.cos(self.angle)])
+        vel = 1000 * np.column_stack([np.sin(self.angle), np.cos(self.angle)])
         self.pos = self.pos + vel * dt
 
         # delete sparks that have exceeded their lifetime
