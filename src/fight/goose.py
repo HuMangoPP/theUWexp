@@ -53,14 +53,6 @@ class Attack:
         self.sprite = None
         self.drawbox = None
 
-        # self.alt_attack = 0
-        # self.phase = None
-
-        # self.frames_elapsed = 0
-        # self.startup_frames = 0
-        # self.active_frames = 0
-        # self.recovery_frames = 0
-
         # animation
         self.frame_index = 0
     
@@ -73,58 +65,8 @@ class Attack:
         self.pos = pos
         self.attack_type = attack_type
 
-        # self.phase = 'startup'
-        # self.startup_frames = _Settings.ATTACK_FRAMES[self.attack_type]['startup']
-        # self.active_frames = _Settings.ATTACK_FRAMES[self.attack_type]['active']
-        # self.recovery_frames = _Settings.ATTACK_FRAMES[self.attack_type]['recovery']
-        # self.alt_attack = (self.alt_attack + 1) % 2
-
-        # self.frames_elapsed = 0
         # reset animatino
         self.frame_index = 0
-
-    # def check_hit(self, fighter):
-    #     orientation = 1 if self.fighter.facing == 'right' else -1
-    #     if (
-    #         self.dangerous and
-    #         self.active
-    #     ):
-    #         mask = pg.mask.from_surface(self.sprite)
-    #         # check parry
-    #         overlap = mask.overlap(
-    #             pg.mask.from_surface(fighter.attack.sprite),
-    #             np.array(fighter.attack.drawbox.topleft) - np.array(self.drawbox.topleft)
-    #         ) if fighter.attack.sprite is not None else None
-    #         if overlap is not None:
-    #             self.fighter.hit.parry()
-    #             self.dangerous = False
-                
-    #             self.fighter.hit_particles['sparks'].create_new_particles(
-    #                 *(np.array(self.drawbox.topleft) + np.array(overlap)), 
-    #                 0, -1
-    #             )
-    #             self.fighter.hit_particles['bolt'].create_new_particles(
-    #                 *(np.array(self.drawbox.topleft) + np.array(overlap)), 
-    #                 orientation,
-    #                 0
-    #             )
-    #             return np.array(self.drawbox.topleft) + np.array(overlap)
-
-    #         # check hit with character
-    #         overlap = mask.overlap(
-    #             pg.mask.from_surface(fighter.sprite),
-    #             np.array(fighter.drawbox.topleft) - np.array(self.drawbox.topleft)
-    #         )
-    #         if overlap is not None:
-    #             fighter.hit.create_new_hit({
-    #                 'fighter_type': self.fighter.fighter_type,
-    #                 'attack_type': self.attack_type,
-    #                 'orientation': orientation,
-    #                 'hit_origin': np.array(self.drawbox.topleft) + np.array(overlap)
-    #             })
-    #             self.dangerous = False
-
-    #     return None
 
     def animate(self, goose, dt: float, attack_assets: dict[str, dict[str, dict[str, list[pg.Surface]]]]):
         if self.active:
@@ -147,10 +89,9 @@ class Attack:
                 self.sprite = None
 
         self.cooldown = max(self.cooldown - dt, 0)
-        # [particle.animate(dt) for particle in self.particles.values()]
     
     def render(self, default: pg.Surface):
-        # render to display
+        # render when sprite is available
         if self.sprite is not None:
             default.blit(self.sprite, self.drawbox)
 
@@ -234,6 +175,7 @@ class Accessory:
             self.drawbox.bottom = self.pos[1] - goose.drawbox.height / 2
 
     def render(self, default_display: pg.Surface):
+        # render if sprite is available
         if self.sprite is not None:
             default_display.blit(self.sprite, self.drawbox)
 
@@ -394,45 +336,6 @@ class Goose:
                 action = keybinds.get(event.key, 'no_action')
                 self.action_inputs[action] = 0
 
-                # if event.key == keybinds['jump'] and self.y >= _Settings.GROUND_LEVEL:
-                #     self.yvel = _Settings.JUMP_SPEED
-                #     self.jump_particles.create_new_particles(self.x, self.y, 1 if self.facing == 'right' else -1)
-                
-                # if event.key == keybinds['dash']:
-                #     orientation = 1 if self.facing == 'right' else -1
-                #     for dir_input in self.direction_inputs:
-                #         if dir_input == 'left':
-                #             orientation = -1
-                #         elif dir_input == 'right':
-                #             orientation = 1
-
-                #     self.dashing = True
-                #     self.xvel = _Settings.DASH_SPEED * orientation
-                #     if 'up' in self.direction_inputs:
-                #         self.yvel = -_Settings.DASH_SPEED / 2
-                #         self.xvel = self.xvel * np.sqrt(3) / 2
-
-                #     self.dash_particles['boom'].create_new_particles(
-                #         *self.drawbox.center,
-                #         1 if self.facing == 'right' else -1
-                #     )
-                #     self.dash_particles['bolt'].create_new_particles(*self.drawbox.center, orientation, 0)
-                
-                # for keybind in ['light', 'spec']:
-                #     if event.key == keybinds[keybind]:
-                #         self.attack_input = keybind
-            
-            # if event.type == pg.KEYUP:
-            #     if event.key == keybinds['right']:
-            #         self.movement_inputs = [movement_input for movement_input in self.movement_inputs if movement_input != 'right']
-            #         self.direction_inputs = [direction_input for direction_input in self.direction_inputs if direction_input != 'right']
-            #     if event.key == keybinds['left']:
-            #         self.movement_inputs = [movement_input for movement_input in self.movement_inputs if movement_input != 'left']
-            #         self.direction_inputs = [direction_input for direction_input in self.direction_inputs if direction_input != 'left']
-            #     if event.key == keybinds['up']:
-            #         self.movement_inputs = [movement_input for movement_input in self.movement_inputs if movement_input != 'up']
-            #         self.direction_inputs = [direction_input for direction_input in self.direction_inputs if direction_input != 'up']
-
     def update(self, dt: float):
         # handle attack inputs
         if not self.attack.active and self.attack.cooldown <= 0:
@@ -469,17 +372,18 @@ class Goose:
             self.vel[1] = _Settings.JUMP_SPEED
             self.action_inputs['jump'] = 0
         
-        if self.attack.active:
+        if self.attack.active: # prevent movement while attacking
             self.dash_time = 0
             sign = np.sign(self.vel[0])
             self.vel[0] = self.vel[0] - sign * _Settings.ACCELERATION * dt
             if sign * self.vel[0] <= 0:
                 self.vel[0] = 0
-        elif self.dash_time > 0:
+        elif self.dash_time > 0: # goose is dashing
             self.dash_time = max(self.dash_time - dt, 0)
             self.vel[0] = _Settings.ORIENTATION[self.facing] * lerp(0, _Settings.DASH_SPEED, self.dash_time + _Settings.DASH_TIME)
-        else:
+        else: 
             is_moving = False
+            # handle movement inputs
             if self.action_inputs['right'] == 1:
                 self.facing = 'right'
                 self.vel[0] = min(self.vel[0] + _Settings.ACCELERATION * dt, _Settings.SPEED)
@@ -489,7 +393,7 @@ class Goose:
                 self.vel[0] = max(self.vel[0] - _Settings.ACCELERATION * dt, -_Settings.SPEED)
                 is_moving = True
             
-            if not is_moving:
+            if not is_moving: # de-celerate
                 sign = np.sign(self.vel[0])
                 self.vel[0] = self.vel[0] - sign * _Settings.ACCELERATION * dt
                 if sign * self.vel[0] <= 0:
@@ -506,36 +410,40 @@ class Goose:
             self.vel[1] += _Settings.GRAVITY * dt
         
         # handle knockback movement
-        self.pos = self.pos + self.knockback * dt 
-        signs = np.sign(self.knockback)
-        self.knockback = self.knockback - signs * _Settings.ACCELERATION * dt
-        self.knockback[signs * self.knockback <= 0] = 0
+        # self.pos = self.pos + self.knockback * dt 
+        # signs = np.sign(self.knockback)
+        # self.knockback = self.knockback - signs * _Settings.ACCELERATION * dt
+        # self.knockback[signs * self.knockback <= 0] = 0
 
     def check_collide(self, rival_goose):
-        if self.dash_time > 0:
+        if self.dash_time > 0: # invincibility
             return False
-        if not rival_goose.attack.active or not rival_goose.attack.dangerous:
+        if not rival_goose.attack.active or not rival_goose.attack.dangerous: # no attack 
             return False
-        if self.sprite is None:
+        if self.sprite is None: # no hitbox
             return False
-        if rival_goose.attack.sprite is None:
+        if rival_goose.attack.sprite is None: # no hurtbox
             return False
+        
+        # create masks for collision
         goose_mask = pg.mask.from_surface(self.sprite)
         attack_mask = pg.mask.from_surface(rival_goose.attack.sprite)
+
+        # calculate collision
         collision = goose_mask.overlap(attack_mask, np.array(rival_goose.attack.drawbox.topleft) - np.array(self.drawbox.topleft))
         if collision is not None:
-            self.gpa -= 0.5
-            rival_goose.attack.dangerous = False
+            self.gpa -= 0.5 # decrease gpa
+            rival_goose.attack.dangerous = False # prevent future collisions
             angle = np.arctan2(
                 rival_goose.drawbox.centerx - self.drawbox.centerx,
                 rival_goose.drawbox.centery - self.drawbox.centery
             )
-            self.hit_vfx.create_vfx(self.drawbox.center, angle)
+            self.hit_vfx.create_vfx(self.drawbox.center, angle) # sparks
             angle = np.arctan2(
                 self.drawbox.centerx - rival_goose.attack.drawbox.centerx,
                 self.drawbox.centery - rival_goose.attack.drawbox.centery
             )
-            self.impact_vfx.create_vfx(self.drawbox.center, angle)
+            self.impact_vfx.create_vfx(self.drawbox.center, angle) # impact
             return True
         return False
 
@@ -557,7 +465,3 @@ class Goose:
         self.dash_vfx.render(gaussian_blur)
         self.hit_vfx.render(gaussian_blur)
         self.impact_vfx.render(gaussian_blur)
-        # use_effects = False
-        # use_effects = self.jump_particles.render(effects_display) or use_effects
-        # use_effects = np.any([particles.render(effects_display) for particles in self.dash_particles.values()]) or use_effects
-        # use_effects = np.any([particles.render(effects_display) for particles in self.hit_particles.values()]) or use_effects
