@@ -508,10 +508,10 @@ class FightMenu(Menu):
         # countdown
         self.countdown = 3
 
-        # winner
-        self.winner = None
-        self.win_banner_opacity = 0
-        self.win_banner_delay = 0
+        # loser
+        self.loser = None
+        self.lose_banner_opacity = 0
+        self.lose_banner_delay = 0
 
         # bullet time 
         self.bullet_time = False
@@ -535,10 +535,10 @@ class FightMenu(Menu):
         self._reset_data(**client.get_fight_data())
 
     def update(self, client):
-        if self.winner is not None: # show winner
-            self.win_banner_opacity = min(self.win_banner_opacity + client.dt, 1)
-            self.win_banner_delay += client.dt
-            if self.win_banner_delay >= 5:
+        if self.loser is not None: # show loser
+            self.lose_banner_opacity = min(self.lose_banner_opacity + client.dt, 1)
+            self.lose_banner_delay += client.dt
+            if self.lose_banner_delay >= 5:
                 self.goto = 'select'
                 self.transition_phase = 1
         elif self.countdown > 0: # countdown
@@ -589,11 +589,11 @@ class FightMenu(Menu):
         )
         
         # check winner
-        if self.goose1.gpa <= 0 and self.winner is None:
-            self.winner = 'goose2'
-        if self.goose2.gpa <= 0 and self.winner is None:
-            self.winner = 'goose1'
-        if self.winner is not None:
+        if self.goose1.gpa <= 0 and self.loser is None:
+            self.loser = 'goose 1'
+        if self.goose2.gpa <= 0 and self.loser is None:
+            self.loser = 'goose 2'
+        if self.loser is not None:
             # reset inputs
             self.goose1.action_inputs = {action: 0 for action in self.goose1.action_inputs}
             self.goose2.action_inputs = {action: 0 for action in self.goose2.action_inputs}
@@ -653,18 +653,18 @@ class FightMenu(Menu):
             )
 
         # render winner
-        if self.winner is not None:
+        if self.loser is not None:
             banner = pg.Surface((self.resolution[0], 200))
             banner.fill((0,0,0))
             client.font.render(
                 banner,
-                f'{self.winner} wins!',
+                f'{self.loser} expelled',
                 (self.resolution[0] / 2, banner.get_height() / 2),
                 _Settings.GOLD,
                 50,
                 style='center'
             )
-            banner.set_alpha(self.win_banner_opacity * 255)
+            banner.set_alpha(self.lose_banner_opacity * 255)
             default.blit(banner, (0, self.resolution[1] / 2 - banner.get_height() / 2))
 
         super().render(client)
