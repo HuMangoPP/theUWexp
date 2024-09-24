@@ -41,6 +41,8 @@ class Attack:
         self.active = False
         # the attack can hit the other goose
         self.dangerous = False
+        # cooldown
+        self.cooldown = 0
        
     def _setup_animation(self): 
         # render data
@@ -130,6 +132,7 @@ class Attack:
 
             # once animation is done, the attack ends
             if self.frame_index >= animation_length:
+                self.cooldown = 1
                 self.frame_index = 0
                 self.active = False
             
@@ -141,6 +144,7 @@ class Attack:
             else:
                 self.sprite = None
 
+        self.cooldown = max(self.cooldown - dt, 0)
         # [particle.animate(dt) for particle in self.particles.values()]
     
     def render(self, default: pg.Surface):
@@ -429,7 +433,7 @@ class Goose:
 
     def update(self, dt: float):
         # handle attack inputs
-        if not self.attack.active:
+        if not self.attack.active and self.attack.cooldown <= 0:
             attack_direction = 's'
             if self.action_inputs['light_attack'] == 1:
                 attack_type = 'light'
