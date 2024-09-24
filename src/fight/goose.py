@@ -20,6 +20,8 @@ class _Settings:
     GRAVITY = 980
     ORIENTATION = dict(right=1, left=-1)
     
+    ATTACK_COOLDOWN = 0.5
+
     HIT_DELAY = 0.1
 
     DAMAGE = {}
@@ -132,7 +134,7 @@ class Attack:
 
             # once animation is done, the attack ends
             if self.frame_index >= animation_length:
-                self.cooldown = 1
+                self.cooldown = _Settings.ATTACK_COOLDOWN
                 self.frame_index = 0
                 self.active = False
             
