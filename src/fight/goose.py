@@ -506,6 +506,8 @@ class Goose:
         self.knockback[signs * self.knockback <= 0] = 0
 
     def check_collide(self, rival_goose):
+        if self.dash_time > 0:
+            return False
         if not rival_goose.attack.active or not rival_goose.attack.dangerous:
             return False
         if self.sprite is None:
