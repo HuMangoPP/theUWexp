@@ -272,7 +272,9 @@ class Goose:
         self.accessory = Accessory(self)
 
         # particle effects
-        self.dash_particles = Boom()
+        self.dash_vfx = Boom()
+        self.hit_vfx = Sparks()
+        self.impact_vfx = Bolt()
 
         # self.jump_particles = DustCloud()
         # self.dash_particles = {
@@ -368,7 +370,9 @@ class Goose:
         self.attack.animate(self, dt, attack_assets)
         
         # animate effects
-        self.dash_particles.animate(dt)
+        self.dash_vfx.animate(dt)
+        self.hit_vfx.animate(dt)
+        self.impact_vfx.animate(dt)
         # self.jump_particles.animate(dt)
         # [particles.animate(dt) for particles in self.dash_particles.values()]
         # [particles.animate(dt) for particles in self.hit_particles.values()]
@@ -450,7 +454,7 @@ class Goose:
             x = self.drawbox.centerx
             w = self.drawbox.w
             y = self.drawbox.bottom - self.drawbox.height / 3
-            self.dash_particles.create_particles(np.array([
+            self.dash_vfx.create_vfx(np.array([
                 [x, y],
                 [x - w / 4, y],
                 [x + w / 4, y]
@@ -514,6 +518,16 @@ class Goose:
         if collision is not None:
             self.gpa -= 0.5
             rival_goose.attack.dangerous = False
+            angle = np.arctan2(
+                self.drawbox.centerx - rival_goose.drawbox.centerx,
+                self.drawbox.centery - rival_goose.drawbox.centery
+            )
+            self.hit_vfx.create_vfx(self.drawbox.center, angle)
+            angle = np.arctan2(
+                self.drawbox.centerx - rival_goose.attack.drawbox.centerx,
+                self.drawbox.centery - rival_goose.attack.drawbox.centery
+            )
+            self.impact_vfx.create_vfx(self.drawbox.center, angle)
             return True
         return False
 
@@ -532,7 +546,9 @@ class Goose:
         self.attack.render(default)
 
         # render effects
-        self.dash_particles.render(gaussian_blur)
+        self.dash_vfx.render(gaussian_blur)
+        self.hit_vfx.render(gaussian_blur)
+        self.impact_vfx.render(gaussian_blur)
         # use_effects = False
         # use_effects = self.jump_particles.render(effects_display) or use_effects
         # use_effects = np.any([particles.render(effects_display) for particles in self.dash_particles.values()]) or use_effects

@@ -10,16 +10,20 @@ class _Settings:
 
 class Boom:
     def __init__(self):
-        # vfx data
+        # data arrays
         self.lifetime = np.zeros(0)
         self.pos = np.zeros((0,2))
     
-    def create_particles(self, pos: np.ndarray):
+    def create_vfx(self, pos: np.ndarray):
+        # new data arrays
+        new_lifetime = np.full(pos.shape[0], _Settings.EFFECT_LIFETIME)
+
+        # append
         if self.pos.size == 0:
-            self.lifetime = np.full(pos.shape[0], _Settings.EFFECT_LIFETIME)
+            self.lifetime = new_lifetime
             self.pos = pos
         else:
-            self.lifetime = np.hstack([self.lifetime, np.full(pos.shape[0], _Settings.EFFECT_LIFETIME)])
+            self.lifetime = np.hstack([self.lifetime, new_lifetime])
             self.pos = np.vstack([self.pos, pos])
     
     def animate(self, dt: float):
@@ -45,122 +49,98 @@ class Boom:
 
 class Sparks:
     def __init__(self):
-        self._setup_state()
-    
-    def _setup_state(self):
-        self.pos = np.array([])
-        self.vel = np.array([])
+        # data arrays
         self.lifetime = np.array([])
+        self.pos = np.array([])
+        self.angle = np.array([])
 
-    def create_new_particles(
-        self,
-        x: float, y: float,
-        ox: float, oy: float,
-        num_particles: int = 3
-    ):
-        new_pos = np.full((num_particles * 2,2), [x,y])
-        angles = np.pi / 6 * (np.random.rand(num_particles * 2) * 2 - 1) + np.arctan2(oy, ox)
-        new_vel = 1000 * np.column_stack([
-            np.cos(angles),
-            np.sin(angles)
-        ])
-        new_vel[num_particles:] = -new_vel[num_particles:]
-        new_lifetime = np.full(num_particles * 2, _Settings.EFFECT_LIFETIME)
+    def create_vfx(self, pos: tuple, angle: float, num_particles: int = 1):
+        # create new data arrays
+        num_sparks = 2 * num_particles + 1
+        new_lifetime = np.full(num_sparks, _Settings.EFFECT_LIFETIME)
+        new_pos = np.full((num_sparks,2), pos)
+        new_angle = np.pi / 6 * (np.random.rand(num_sparks) * 2 - 1) + angle
 
-        self.pos = np.array([*self.pos, *new_pos])
-        self.vel = np.array([*self.vel, *new_vel])
-        self.lifetime = np.array([*self.lifetime, *new_lifetime])
+        # append
+        if self.lifetime.size == 0:
+            self.lifetime = new_lifetime
+            self.pos = new_pos
+            self.angle = new_angle
+        else:
+            self.lifetime = np.hstack([self.lifetime, new_lifetime])
+            self.pos = np.vstack([self.pos, new_pos])
+            self.angle = np.hstack([self.angle, new_angle])
 
     def animate(self, dt: float):
-        self.lifetime = self.lifetime - dt
-        mask = self.lifetime > 0
-        self.pos = self.pos[mask]
-        self.vel = self.vel[mask]
-        self.lifetime = self.lifetime[mask]
+        if self.lifetime.size == 0:
+            return
+        # move the sparks
+        vel = 2000 * np.column_stack([np.sin(self.angle), np.cos(self.angle)])
+        self.pos = self.pos + vel * dt
 
-        self.pos = self.pos + self.vel * dt
+        # delete sparks that have exceeded their lifetime
+        self.lifetime = self.lifetime - dt
+        alive = self.lifetime > 0
+        self.lifetime = self.lifetime[alive]
+        self.pos = self.pos[alive]
+        self.angle = self.angle[alive]
     
-    def render(self, effects_display: pg.Surface):
-        for pos, vel, lifetime in zip(self.pos, self.vel, self.lifetime):
-            perp = np.array([0,0])
-            perp[0] = vel[1]
-            perp[1] = -vel[0]
-            vel_scale = vel / 200 / (lifetime + _Settings.EFFECT_LIFETIME)
-            perp_scale = perp / 20 * lifetime
-            vertices = vel_scale + np.array([
-                pos - vel_scale,
-                pos - perp_scale, 
-                pos + 2 * vel_scale,
-                pos + perp_scale,
+    def render(self, gaussian_blur: pg.Surface):
+        for pos, angle, lifetime in zip(self.pos, self.angle, self.lifetime):
+            # render a diamond shaped spark
+            scale = lerp(np.zeros(4), np.array([100, 10, 100, 10]), lifetime / _Settings.EFFECT_LIFETIME)
+            vertices = pos + scale.reshape(-1,1) * np.array([
+                [np.sin(angle), np.cos(angle)],
+                [np.sin(angle + np.pi / 2), np.cos(angle + np.pi / 2)],
+                [np.sin(angle + np.pi), np.cos(angle + np.pi)],
+                [np.sin(angle - np.pi / 2), np.cos(angle - np.pi / 2)]
             ])
-            pg.draw.polygon(
-                effects_display,
-                (255,255,255),
-                vertices
-            )
-        if self.lifetime.size > 0:
-            return True
-        return False
+            pg.draw.polygon(gaussian_blur, (255,255,255), vertices)
 
 
 class Bolt:
     def __init__(self):
-        self._setup_state()
+        # data arrays
+        self.lifetime = np.zeros(0)
+        self.pos = np.zeros((0,2))
+        self.angle = np.zeros(0)
     
-    def _setup_state(self):
-        self.active = False
-        self.pos = np.zeros(2)
-        self.vel = np.zeros(2)
-        self.angle = 0
-        self.lifetime = 1
-        self.move_forward = False
-    
-    def create_new_particles(
-        self,
-        x: float, y: float,
-        ox: float, oy: float,
-    ):
-        self.active = True
-        self.pos = np.array([x,y])
-        self.angle = np.arctan2(oy, ox) + np.pi / 12 * (np.random.rand() * 2 - 1)
-        self.vel = 3000 * np.array([
-            np.cos(self.angle),
-            np.sin(self.angle)
-        ])
-        self.move_forward = True
-        self.lifetime = _Settings.EFFECT_LIFETIME
+    def create_vfx(self, pos: np.ndarray, angle: float):
+        # append
+        if self.lifetime.size == 0:
+            self.lifetime = np.full(1, _Settings.EFFECT_LIFETIME)
+            self.pos = np.array([pos])
+            self.angle = np.full(1, angle + np.pi / 6 * (2 * np.random.rand() - 1))
+        else:
+            self.lifetime = np.hstack([self.lifetime, _Settings.EFFECT_LIFETIME])
+            self.pos = np.vstack([self.pos, pos])
+            self.angle = np.hstack([self.angle, angle + np.pi / 6 * (2 * np.random.rand() - 1)])
 
     def animate(self, dt: float):
-        if not self.active:
+        if self.lifetime.size == 0:
             return
-        self.lifetime -= dt
-        if self.lifetime < _Settings.EFFECT_LIFETIME / 2:
-            self.move_forward = False
-        if self.lifetime < 0:
-            self.active = False
         
-        if self.move_forward:
-            self.pos = self.pos + self.vel * dt
-        else:
-            self.pos = self.pos - self.vel * dt
+        # move bolt
+        vel = 100 * np.column_stack([np.sin(self.angle), np.cos(self.angle)])
+        self.pos = self.pos + vel * dt
+
+        # destroy vfx
+        self.lifetime = self.lifetime - dt
+        alive = self.lifetime > 0
+        self.lifetime = self.lifetime[alive]
+        self.pos = self.pos[alive]
+        self.angle = self.angle[alive]
     
-    def render(self, effects_display: pg.Surface):
-        if self.active:
-            long = 50 / (self.lifetime + _Settings.EFFECT_LIFETIME) * np.array([np.cos(self.angle), np.sin(self.angle)])
-            short = 3 * np.array([np.cos(self.angle + np.pi / 2), np.sin(self.angle + np.pi / 2)])
-            points = np.array([
-                self.pos - long,
-                self.pos - short,
-                self.pos + long,
-                self.pos + short,
+    def render(self, gaussian_blur: pg.Surface):
+        for pos, angle, lifetime in zip(self.pos, self.angle, self.lifetime):
+            scale = np.array([500, 20, 500, 20]) * lerp(1 / 5, 1, lifetime / _Settings.EFFECT_LIFETIME)
+            vertices = pos + scale.reshape(-1,1) * np.array([
+                [np.sin(angle), np.cos(angle)],
+                [np.sin(angle + np.pi / 2), np.cos(angle + np.pi / 2)],
+                [np.sin(angle + np.pi), np.cos(angle + np.pi)],
+                [np.sin(angle - np.pi / 2), np.cos(angle - np.pi / 2)]
             ])
-            pg.draw.polygon(
-                effects_display,
-                (255,255,255),
-                points
-            )
-            return True
-        return False
+            pg.draw.polygon(gaussian_blur, (255, 255, 255), vertices)
 
 
 class DustCloud:
