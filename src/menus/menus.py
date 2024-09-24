@@ -612,31 +612,31 @@ class FightMenu(Menu):
         self.goose2.render(default, gaussian_blur)
 
         # render gpa
-        pg.draw.rect(
-            default,
-            (255,255,255),
-            pg.Rect(75, 35, 200, 50)
-        )
-        pg.draw.rect(
-            default,
-            (255,255,255),
-            pg.Rect(self.resolution[0] - 275, 35, 200, 50)
-        )
+        font_size = 30
+        margin = 20
+        padding = 10
+        text = f'gpa {round(self.goose1.gpa, 2)}'
+        rect = pg.Rect(margin, margin, 2 * padding + client.font.text_width(text, font_size), 2 * padding + client.font.char_height(font_size))
+        pg.draw.rect(default, _Settings.LIGHT, rect)
         client.font.render(
-            default,
-            f'gpa {round(self.goose1.gpa, 2)}',
-            (175, 75),
+            default, 
+            text, 
+            rect.center,
             [_Settings.BLACK, lerp(np.array([255,0,0]), np.array([0,255,0]), self.goose1.gpa / 4)],
-            30,
+            font_size,
             style='center',
             highlighting='00001111'
         )
+        text = f'gpa {round(self.goose2.gpa, 2)}'
+        rect = pg.Rect(0, margin, 2 * padding + client.font.text_width(text, font_size), 2 * padding + client.font.char_height(font_size))
+        rect.right = self.resolution[0] - margin
+        pg.draw.rect(default, _Settings.LIGHT, rect)
         client.font.render(
             default,
-            f'gpa {round(self.goose2.gpa, 2)}',
-            (self.resolution[0] - 175, 75),
+            text,
+            rect.center,
             [_Settings.BLACK, lerp(np.array([255,0,0]), np.array([0,255,0]), self.goose2.gpa / 4)],
-            30,
+            font_size,
             style='center',
             highlighting='00001111'
         )
