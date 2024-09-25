@@ -13,8 +13,9 @@ class Boom:
         # data arrays
         self.lifetime = np.zeros(0)
         self.pos = np.zeros((0,2))
+        self.angle = np.zeros(0)
     
-    def create_vfx(self, pos: np.ndarray):
+    def create_vfx(self, pos: np.ndarray, angle: np.ndarray):
         # new data arrays
         new_lifetime = np.full(pos.shape[0], _Settings.EFFECT_LIFETIME)
 
@@ -22,9 +23,11 @@ class Boom:
         if self.pos.size == 0:
             self.lifetime = new_lifetime
             self.pos = pos
+            self.angle = angle
         else:
             self.lifetime = np.hstack([self.lifetime, new_lifetime])
             self.pos = np.vstack([self.pos, pos])
+            self.angle = np.hstack([self.angle, angle])
     
     def animate(self, dt: float):
         if self.lifetime.size == 0:
@@ -35,16 +38,21 @@ class Boom:
         alive = self.lifetime > 0
         self.lifetime = self.lifetime[alive]
         self.pos = self.pos[alive]
+        self.angle = self.angle[alive]
         
     def render(self, gaussian_blur: pg.Surface):
         if self.lifetime.size == 0:
             return
 
-        for lifetime, pos in zip(self.lifetime, self.pos):
+        for lifetime, pos, angle in zip(self.lifetime, self.pos, self.angle):
             r = lerp(150, 0, lifetime / _Settings.EFFECT_LIFETIME)
-            rect = pg.Rect(0, 0, r / 2, r)
+            boom = pg.Surface((r, 2 * r))
+            boom.set_colorkey((0, 0, 0))
+            pg.draw.ellipse(boom, (255, 255, 255), pg.Rect(r / 4, r / 2, r / 2, r), 10)
+            boom = pg.transform.rotate(boom, -angle)
+            rect = boom.get_rect()
             rect.center = pos
-            pg.draw.ellipse(gaussian_blur, (255, 255, 255), rect, 10)
+            gaussian_blur.blit(boom, rect)
 
 
 class Sparks:

@@ -15,7 +15,7 @@ class _Settings:
     ACCELERATION = 1000
     JUMP_SPEED = -400
     DASH_SPEED = 1000
-    DASH_TIME = 1 / 2
+    DASH_TIME = 1 / 4
     SQUASH_SPEED = 5
     GRAVITY = 980
     ORIENTATION = dict(right=1, left=-1)
@@ -211,6 +211,7 @@ class Goose:
         self.vel = np.zeros(2)
         self.knockback = np.zeros(2)
         self.dash_time = 0
+        self.dash_y = 0
 
         # goose gpa
         self.gpa = 4.0
@@ -380,16 +381,18 @@ class Goose:
         # handle movement inputs
         if self.action_inputs['dash'] == 1:
             self.dash_time = _Settings.DASH_TIME
+            self.dash_y = int(self.direction_inputs['down'] == 1) - int(self.direction_inputs['up'] == 1)
             self.action_inputs['dash'] = 0
             
             x = self.drawbox.centerx
             w = self.drawbox.w
-            y = self.drawbox.bottom - self.drawbox.height / 3
-            self.dash_vfx.create_vfx(np.array([
-                [x, y],
-                [x - w / 4, y],
-                [x + w / 4, y]
-            ]))
+            y = self.drawbox.centery
+            angle = np.rad2deg(np.arctan(self.dash_y / _Settings.ORIENTATION[self.facing]))
+            self.dash_vfx.create_vfx(np.array([x, y]) + w / 4 * np.array([
+                [-_Settings.ORIENTATION[self.facing], -self.dash_y],
+                [0, 0],
+                [_Settings.ORIENTATION[self.facing], self.dash_y]
+            ]), np.full(3, angle))
         if self.action_inputs['jump'] == 1:
             self.vel[1] = _Settings.JUMP_SPEED
             self.action_inputs['jump'] = 0
@@ -403,7 +406,9 @@ class Goose:
         
         if self.dash_time > 0: # goose is dashing
             self.dash_time = max(self.dash_time - dt, 0)
-            self.vel[0] = _Settings.ORIENTATION[self.facing] * lerp(0, _Settings.DASH_SPEED, self.dash_time + _Settings.DASH_TIME)
+            dash_spd = lerp(_Settings.DASH_SPEED / 2, _Settings.DASH_SPEED, self.dash_time / _Settings.DASH_TIME)
+            self.vel = np.array([_Settings.ORIENTATION[self.facing], self.dash_y])
+            self.vel = dash_spd * self.vel / np.linalg.norm(self.vel)
             can_move = False
             can_change_direction = False
         
