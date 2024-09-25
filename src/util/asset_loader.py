@@ -33,7 +33,7 @@ def _get_frames(spritesheet: pg.Surface, num_frames: int) -> list[pg.Surface]:
     for i in range(num_frames):
         frame = pg.Surface((frame_width, frame_height))
         frame.blit(spritesheet, (-i * frame_width, 0))
-        frame.set_colorkey((0, 0, 0))
+        frame.set_colorkey((255, 0, 0))
         frames.append(frame)
     return frames
     
@@ -72,7 +72,7 @@ def _scale_frames(sprites: dict[str, list[pg.Surface]], scale: float):
 def _flip_frames_and_set_colorkey(frames: list[pg.Surface]):
     for frame in frames:
         flipped_frame = pg.transform.flip(frame, flip_x=True, flip_y=False)
-        flipped_frame.set_colorkey((0, 0, 0))
+        flipped_frame.set_colorkey((255, 0, 0))
         yield flipped_frame
 
 
@@ -87,19 +87,12 @@ def _flip_frames(sprites: dict[str, list[pg.Surface]]) -> dict[str, dict[str, li
 
 
 def load_character_assets(path: str, progress: int, scale: float = 1):
-    basic_goose_sprites = _load_spritesheet(os.path.join(path, 'basic'))
     majors = os.listdir(path)
     if progress >= len(majors):
         return None, None
     major = majors[progress]
-    if major == 'basic':
-        goose_sprites = _scale_frames(basic_goose_sprites, scale)
-        return major, _flip_frames(goose_sprites)
-    elif len(os.listdir(os.path.join(path, major))) > 1:
-        goose_overlay_sprites = _load_spritesheet(os.path.join(path, major))
-        goose_sprites = _flip_frames(_scale_frames(_overlay_frames(basic_goose_sprites, goose_overlay_sprites), scale))
-        return major, goose_sprites
-    return major, None
+    goose_sprites = _scale_frames(_load_spritesheet(os.path.join(path, major)), scale)
+    return major, _flip_frames(goose_sprites)
 
 
 def load_accessory_assets(path: str, progress: int, scale: float = 1):

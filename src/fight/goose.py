@@ -192,10 +192,10 @@ class Accessory:
             self.drawbox.centerx = self.pos[0] - lerp(-self.drawbox.width, self.drawbox.width, self.orientation) / 2
             self.drawbox.bottom = self.pos[1] - goose.drawbox.height / 2
 
-    def render(self, default_display: pg.Surface):
+    def render(self, default: pg.Surface):
         # render if sprite is available
         if self.sprite is not None:
-            default_display.blit(self.sprite, self.drawbox)
+            default.blit(self.sprite, self.drawbox)
 
 
 class Goose:
@@ -229,8 +229,8 @@ class Goose:
         self.facing = goose_data['facing']
         self.frame_index = 0
 
-        # accessory
-        self.accessory = Accessory(self)
+        # # accessory
+        # self.accessory = Accessory(self)
 
         # particle effects
         self.dash_vfx = Boom()
@@ -292,15 +292,11 @@ class Goose:
         self, 
         dt: float,
         character_assets: dict[str, dict[str, dict[str, list[pg.Surface]]]],
-        accessory_assets: dict[str, dict[str, pg.Surface]],
         attack_assets: dict
     ):
         # update animation state
         if self.attack.active:
-            if 'honk' not in self.action:
-                self._change_animation(f'honk_startup')
-        elif 'honk' in self.action:
-            self._change_animation(f'honk_recovery')
+            self._change_animation('idle')
         elif self.dash_time > 0:
             self._change_animation('dash')
         elif self.pos[1] < _Settings.GROUND_LEVEL:
@@ -309,7 +305,7 @@ class Goose:
             else:
                 self._change_animation('fall')
         elif self.vel[0]:
-            self._change_animation('walk')
+            self._change_animation('move')
         else:
             self._change_animation('idle')
         
@@ -319,12 +315,8 @@ class Goose:
         # end of animation frames
         if self.frame_index >= animation_length:
             self.frame_index = 0
-            if self.action in ['jump', 'fall', 'hit', 'dash']:
+            if self.action in ['jump', 'fall']:
                 self.frame_index = animation_length - 1
-            if self.action in ['honk_startup']:
-                self._change_animation('honk_active')
-            if self.action in ['honk_recovery']:
-                self._change_animation('idle')
 
         # get sprite
         self.sprite = character_assets.get(self.major, character_assets['basic'])[self.action][self.facing][int(self.frame_index)]
@@ -332,8 +324,8 @@ class Goose:
         self.drawbox.centerx = self.pos[0]
         self.drawbox.bottom = self.pos[1]
 
-        # animate accessories
-        self.accessory.animate(self, dt, accessory_assets)
+        # # animate accessories
+        # self.accessory.animate(self, dt, accessory_assets)
         
         # animate attacks
         self.attack.animate(self, dt, attack_assets)
@@ -342,9 +334,6 @@ class Goose:
         self.dash_vfx.animate(dt)
         self.hit_vfx.animate(dt)
         self.impact_vfx.animate(dt)
-        # self.jump_particles.animate(dt)
-        # [particles.animate(dt) for particles in self.dash_particles.values()]
-        # [particles.animate(dt) for particles in self.hit_particles.values()]
 
     def input(self, events: list[pg.Event], keybinds: dict[int, str]):
         for event in events:
@@ -493,8 +482,8 @@ class Goose:
         # render sprite
         default.blit(self.sprite, self.drawbox)
 
-        # render accessory
-        self.accessory.render(default)
+        # # render accessory
+        # self.accessory.render(default)
 
         # render attack
         self.attack.render(default)

@@ -174,25 +174,21 @@ class Client:
             # art assets
             self.backgrounds, self.background_thumbnails = load_backgrounds(f'{self.path}/backgrounds', resolution)
             self.character_assets = {}
-            self.accessory_assets = {}
             self.attack_assets = {}
 
         def load_assets(self):
             # load characters
-            character, sprites = load_character_assets(f'{self.path}/geese', self.progress, scale=3)
+            goose_major, sprites = load_character_assets(f'{self.path}/new_geese', self.progress, scale=3)
             if sprites is not None:
-                self.character_assets[character] = sprites
-            accessory, sprite = load_accessory_assets(f'{self.path}/geese', self.progress, scale=3)
-            if sprite is not None:
-                self.accessory_assets[accessory] = sprite
+                self.character_assets[goose_major] = sprites
 
             # load attacks
-            attack, sprites = load_attack_assets(f'{self.path}/attacks', self.progress, scale=3)
-            if sprites is not None:
-                self.attack_assets[attack] = sprites
+            # attack, sprites = load_attack_assets(f'{self.path}/attacks', self.progress, scale=1)
+            # if sprites is not None:
+            #     self.attack_assets[attack] = sprites
 
             # done loading
-            if not character and not accessory and not attack:
+            if goose_major is None:
                 self.finished_loading = True
             else:
                 self.progress += 1

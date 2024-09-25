@@ -51,18 +51,11 @@ class _Settings:
     BULLET_TIME = 1
 
 
-def _get_splash(character_assets: dict, accessory_assets: dict, major: str, facing: str) -> tuple[pg.Surface, pg.Surface]:
+def _get_splash(character_assets: dict, major: str, facing: str) -> tuple[pg.Surface, pg.Surface]:
     sprite = pg.transform.scale_by(character_assets.get(major, character_assets['basic'])['idle'][facing][0], 2)
-    sprite.set_colorkey((0, 0, 0))
-    accessory = accessory_assets.get(major, {
-        'right': None,
-        'left': None
-    })[facing]
-    if accessory is not None:
-        accessory = pg.transform.scale_by(accessory, 2)
-        accessory.set_colorkey((0, 0, 0))
+    sprite.set_colorkey((255, 0, 0))
 
-    return sprite, accessory
+    return sprite
 
 
 class Menu:
@@ -420,27 +413,23 @@ class SelectMenu(Menu):
         
         # render goose sprite for player 1
         if self.selections[0] is not None:
-            goose1_sprite, goose1_accessory = _get_splash(client.assets.character_assets, client.assets.accessory_assets, self.selections[0], 'right')
+            goose1_sprite = _get_splash(client.assets.character_assets, self.selections[0], 'right')
 
             goose1_drawbox = goose1_sprite.get_rect()
             goose1_drawbox.centerx = 50 + self.resolution[0] / 8
             goose1_drawbox.centery = self.resolution[1] / 2
 
             default.blit(goose1_sprite, goose1_drawbox)
-            if goose1_accessory is not None:
-                default.blit(goose1_accessory, np.array(goose1_drawbox.center) - np.array(goose1_accessory.get_size()))
         
         # render goose sprite for player 2
         if self.selections[1] is not None:
-            goose2_sprite, goose2_accessory = _get_splash(client.assets.character_assets, client.assets.accessory_assets, self.selections[1], 'left')
+            goose2_sprite = _get_splash(client.assets.character_assets, self.selections[1], 'left')
 
             goose2_drawbox = goose2_sprite.get_rect()
             goose2_drawbox.centerx = self.resolution[0] * 7 / 8 - 50
             goose2_drawbox.centery = self.resolution[1] / 2
 
             default.blit(goose2_sprite, goose2_drawbox)
-            if goose2_accessory is not None:
-                default.blit(goose2_accessory, np.array(goose2_drawbox.center) - np.array([0, goose2_accessory.get_height()]))
 
         # render the selected bg
         selected_bg = client.assets.background_thumbnails[_Settings.BACKGROUNDS[self.selected_background]]
@@ -480,13 +469,9 @@ class SelectMenu(Menu):
             if self.show_countdown:
                 # render player 1 closeup
                 default.blit(goose1_sprite, goose1_drawbox)
-                if goose1_accessory is not None:
-                    default.blit(goose1_accessory, np.array(goose1_drawbox.center) - np.array(goose1_accessory.get_size()))
 
                 # render player 2 closeup
                 default.blit(goose2_sprite, goose2_drawbox)
-                if goose2_accessory is not None:
-                    default.blit(goose2_accessory, np.array(goose2_drawbox.center) - np.array([0, goose2_accessory.get_height()]))
                 
                 # render text
                 client.font.render(
@@ -583,13 +568,11 @@ class FightMenu(Menu):
         self.goose1.animate(
             client.dt,
             client.assets.character_assets, 
-            client.assets.accessory_assets,
             client.assets.attack_assets,
         )
         self.goose2.animate(
             client.dt, 
             client.assets.character_assets,
-            client.assets.accessory_assets,
             client.assets.attack_assets,
         )
         
