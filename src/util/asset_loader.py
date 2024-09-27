@@ -36,14 +36,19 @@ def _get_frames(spritesheet: pg.Surface, num_frames: int) -> list[pg.Surface]:
         frame.set_colorkey((255, 0, 0))
         frames.append(frame)
     return frames
-    
 
-def _load_spritesheet(path: str) -> dict[str, list[pg.Surface]]:
+
+def _load_spritesheet(path: str, animations: dict[str, int]) -> dict[str, list[pg.Surface]]:
+    spritesheet = pg.image.load(path).convert()
+    frame_width = spritesheet.get_width() / max(animations.values())
+    frame_height = spritesheet.get_height() / len(animations.keys())
+
     sprites = {}
-    for filename in os.listdir(path):
-        spritesheet_name = filename[:-4].split('-')[0]
-        num_frames = int(filename[:-4].split('-')[1])
-        sprites[spritesheet_name] = _get_frames(pg.image.load(os.path.join(path, filename)).convert(), num_frames)
+    for i, (animation, num_frames) in enumerate(animations.items()):
+        sprites[animation] = _get_frames(spritesheet.subsurface(pg.Rect(
+            0, frame_height * i,
+            frame_width * num_frames, frame_height
+        )), num_frames)
     return sprites
 
 
@@ -86,38 +91,61 @@ def _flip_frames(sprites: dict[str, list[pg.Surface]]) -> dict[str, dict[str, li
     }
 
 
+CHARACTER_ANIMATIONS = dict(
+    idle=8,
+    move=8,
+    dash=4,
+    jump=4,
+    fall=2,
+    nlight=6,
+    slight=6,
+    dlight=6,
+    nair=6,
+    sair=6,
+    dair=6
+)
+
+
 def load_character_assets(path: str, progress: int, scale: float = 1):
     majors = os.listdir(path)
     if progress >= len(majors):
         return None, None
     major = majors[progress]
-    goose_sprites = _scale_frames(_load_spritesheet(os.path.join(path, major)), scale)
-    return major, _flip_frames(goose_sprites)
+    goose_sprites = _flip_frames(_scale_frames(_load_spritesheet(os.path.join(path, major), CHARACTER_ANIMATIONS), scale))
+    return major.split('.')[0], goose_sprites
 
 
-def load_accessory_assets(path: str, progress: int, scale: float = 1):
+# def load_accessory_assets(path: str, progress: int, scale: float = 1):
+#     majors = os.listdir(path)
+#     if progress >= len(majors):
+#         return None, None
+#     major = majors[progress]
+#     if len(os.listdir(os.path.join(path, major))) == 1:
+#         accessory_sprite = pg.transform.scale_by(pg.image.load(os.path.join(path, major, f'{major}.png')), scale)
+#         accessory_sprite.set_colorkey((0, 0, 0))
+#         flipped_sprite = pg.transform.flip(accessory_sprite, flip_x=True, flip_y=False)
+#         flipped_sprite.set_colorkey((0, 0, 0))
+#         return major, dict(
+#             right=accessory_sprite,
+#             left=flipped_sprite
+#         )
+#     return major, None
+
+
+ATTACK_ANIMATIONS = dict(
+    nlight=6,
+    slight=6,
+    dlight=6,
+    nair=6,
+    sair=6,
+    dair=6
+)
+
+
+def load_attack_assets(path: str, progress: int, scale: float = 1):
     majors = os.listdir(path)
     if progress >= len(majors):
         return None, None
     major = majors[progress]
-    if len(os.listdir(os.path.join(path, major))) == 1:
-        accessory_sprite = pg.transform.scale_by(pg.image.load(os.path.join(path, major, f'{major}.png')), scale)
-        accessory_sprite.set_colorkey((0, 0, 0))
-        flipped_sprite = pg.transform.flip(accessory_sprite, flip_x=True, flip_y=False)
-        flipped_sprite.set_colorkey((0, 0, 0))
-        return major, dict(
-            right=accessory_sprite,
-            left=flipped_sprite
-        )
-    return major, None
-
-
-def load_attack_assets(path: str, progress: int, scale: float = 1):
-    majors = [major for major in os.listdir(path) if os.path.isdir(os.path.join(path, major))]
-    if progress >= len(majors):
-        return None, None
-    major = majors[progress]
-    if len(os.listdir(os.path.join(path, major))) > 0:
-        sprites = _flip_frames(_scale_frames(_load_spritesheet(os.path.join(path, major)), scale))
-        return major, sprites
-    return major, None
+    sprites = _flip_frames(_scale_frames(_load_spritesheet(os.path.join(path, major), ATTACK_ANIMATIONS), scale))
+    return major.split('.')[0], sprites

@@ -5,7 +5,7 @@ from ..util import lerp
 
 
 class _Settings:
-    EFFECT_LIFETIME = 0.1
+    EFFECT_LIFETIME = 1 / 5
 
 
 class Boom:

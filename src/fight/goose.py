@@ -20,7 +20,7 @@ class _Settings:
     GRAVITY = 980
     ORIENTATION = dict(right=1, left=-1)
     
-    ATTACK_COOLDOWN = 0.5
+    ATTACK_COOLDOWN = 1 / 4
 
     HIT_DELAY = 0.1
 
@@ -72,8 +72,8 @@ class Attack:
         if self.active:
             # animate
             self.frame_index += dt * _Settings.ANIMATION_SPEED
-            # animation_length = len(attack_assets[goose.major][self.attack_type][goose.facing])
-            animation_length = 20
+            animation_length = len(attack_assets.get(goose.major, attack_assets['basic'])[self.attack_type][goose.facing])
+            # animation_length = 10
 
             # once animation is done, the attack ends
             if self.frame_index >= animation_length:
@@ -83,26 +83,12 @@ class Attack:
             
             # get the sprite
             if self.active:
-                # white rectangle
-                self.sprite = pg.Surface((100, 50))
-                self.sprite.fill((255, 255, 255))
-                # self.sprite = attack_assets[goose.major][self.attack_type][goose.facing][int(self.frame_index)]
+                self.sprite = attack_assets.get(goose.major, attack_assets['basic'])[self.attack_type][goose.facing][int(self.frame_index)]
                 
                 # get drawbox
                 self.drawbox = self.sprite.get_rect()
                 
-                if self.attack_type[:1] == 's':
-                    self.drawbox.centery = goose.drawbox.centery
-                    if self.orientation == 'left':
-                        self.drawbox.right = goose.drawbox.centerx
-                    else:
-                        self.drawbox.left = goose.drawbox.centerx
-                elif self.attack_type[:1] == 'n':
-                    self.drawbox.centerx = goose.drawbox.centerx
-                    self.drawbox.bottom = goose.drawbox.centery
-                else:
-                    self.drawbox.centerx = goose.drawbox.centerx
-                    self.drawbox.top = goose.drawbox.centery
+                self.drawbox.center = goose.drawbox.center
             else:
                 self.sprite = None
 
@@ -297,7 +283,7 @@ class Goose:
     ):
         # update animation state
         if self.attack.active:
-            self._change_animation('idle')
+            self._change_animation(self.attack.attack_type)
         elif self.dash_time > 0:
             self._change_animation('dash')
         elif self.pos[1] < _Settings.GROUND_LEVEL:
@@ -317,6 +303,8 @@ class Goose:
         if self.frame_index >= animation_length:
             self.frame_index = 0
             if self.action in ['jump', 'fall']:
+                self.frame_index = animation_length - 1
+            if self.action == self.attack.attack_type:
                 self.frame_index = animation_length - 1
 
         # get sprite
@@ -362,9 +350,9 @@ class Goose:
                 else:
                     attack_type = 'light'
                 self.action_inputs['light_attack'] = 0
-            elif self.action_inputs['special_attack'] == 1 and self.pos[1] >= _Settings.GROUND_LEVEL:
-                attack_type = 'special'
-                self.action_inputs['special_attack'] = 0
+            # elif self.action_inputs['special_attack'] == 1 and self.pos[1] >= _Settings.GROUND_LEVEL:
+            #     attack_type = 'special'
+            #     self.action_inputs['special_attack'] = 0
             else:
                 attack_type = None
             if attack_type is not None:

@@ -9,7 +9,7 @@ from .util import (
     load_keybinds, 
     load_backgrounds,
     load_character_assets, 
-    load_accessory_assets,
+    # load_accessory_assets,
     load_attack_assets, 
 )
 
@@ -181,11 +181,10 @@ class Client:
             goose_major, sprites = load_character_assets(f'{self.path}/new_geese', self.progress, scale=3)
             if sprites is not None:
                 self.character_assets[goose_major] = sprites
-
             # load attacks
-            # attack, sprites = load_attack_assets(f'{self.path}/attacks', self.progress, scale=1)
-            # if sprites is not None:
-            #     self.attack_assets[attack] = sprites
+            attack, sprites = load_attack_assets(f'{self.path}/new_attacks', self.progress, scale=3)
+            if sprites is not None:
+                self.attack_assets[attack] = sprites
 
             # done loading
             if goose_major is None:
