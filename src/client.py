@@ -182,12 +182,12 @@ class Client:
             if sprites is not None:
                 self.character_assets[goose_major] = sprites
             # load attacks
-            attack, sprites = load_attack_assets(f'{self.path}/new_attacks', self.progress, scale=3)
+            attack_major, sprites = load_attack_assets(f'{self.path}/new_attacks', self.progress, scale=3)
             if sprites is not None:
-                self.attack_assets[attack] = sprites
+                self.attack_assets[attack_major] = sprites
 
             # done loading
-            if goose_major is None:
+            if goose_major is None and attack_major is None:
                 self.finished_loading = True
             else:
                 self.progress += 1
