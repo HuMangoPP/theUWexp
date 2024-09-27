@@ -368,22 +368,28 @@ class Goose:
 
         # handle movement inputs
         if self.action_inputs['dash'] == 1:
-            self.dash_time = _Settings.DASH_TIME
-            self.dash_y = int(self.direction_inputs['down'] == 1) - int(self.direction_inputs['up'] == 1)
             self.action_inputs['dash'] = 0
-            
-            x = self.drawbox.centerx
-            w = self.drawbox.w
-            y = self.drawbox.centery
-            angle = np.rad2deg(np.arctan(self.dash_y / _Settings.ORIENTATION[self.facing]))
-            self.dash_vfx.create_vfx(np.array([x, y]) + w / 4 * np.array([
-                [-_Settings.ORIENTATION[self.facing], -self.dash_y],
-                [0, 0],
-                [_Settings.ORIENTATION[self.facing], self.dash_y]
-            ]), np.full(3, angle))
+
+            # prevent dash input when attack is active
+            if not self.attack.active:
+                self.dash_time = _Settings.DASH_TIME
+                self.dash_y = int(self.direction_inputs['down'] == 1) - int(self.direction_inputs['up'] == 1)
+                
+                x = self.drawbox.centerx
+                w = self.drawbox.w
+                y = self.drawbox.centery
+                angle = np.rad2deg(np.arctan(self.dash_y / _Settings.ORIENTATION[self.facing]))
+                self.dash_vfx.create_vfx(np.array([x, y]) + w / 4 * np.array([
+                    [-_Settings.ORIENTATION[self.facing], -self.dash_y],
+                    [0, 0],
+                    [_Settings.ORIENTATION[self.facing], self.dash_y]
+                ]), np.full(3, angle))
         if self.action_inputs['jump'] == 1:
-            self.vel[1] = _Settings.JUMP_SPEED
             self.action_inputs['jump'] = 0
+
+            # prevent jump input when attack is active
+            if not self.attack.active:
+                self.vel[1] = _Settings.JUMP_SPEED
         
         can_move = True
         can_change_direction = True
