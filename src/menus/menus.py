@@ -16,8 +16,6 @@ class _Settings:
     LIGHT = (245, 245, 245)
 
     FIGHTERS = [
-        'astro',
-        'biotech',
         'civarch',
         'comm',
         'csse',
@@ -25,13 +23,12 @@ class _Settings:
         'fin',
         'kine',
         'mathco',
-        'mathphys',
-        'med',
+        'amath',
         'mte',
-        'nanophys',
         'opto',
         'pharm',
         'phil',
+        'physchem',
         'plant',
         'stats'
     ]
