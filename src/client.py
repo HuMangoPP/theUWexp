@@ -1,6 +1,7 @@
 import numpy as np
 import pygame as pg
 import moderngl as mgl
+import json
 
 from .pymgl import GraphicsEngine
 from .pyfont import Font
@@ -9,7 +10,7 @@ from .util import (
     load_keybinds, 
     load_backgrounds,
     load_character_assets, 
-    # load_accessory_assets,
+    load_accessory_assets,
     load_attack_assets, 
 )
 
@@ -158,6 +159,15 @@ class Client:
             # progress
             self.finished_loading = False
             self.progress = 0
+            self.geese_meta_data = {}
+            with open(f'{path}/geese/geese.json') as f:
+                self.geese_meta_data = json.load(f) 
+            self.accessory_meta_data = {}
+            with open(f'{path}/accessories/accessories.json') as f:
+                self.accessory_meta_data = json.load(f)
+            self.attack_meta_data = {}
+            # with open(f'{path}/new_new_attacks/attacks.json') as f:
+            #     self.attack_meta_data = json.load(f)
 
             # cursor and logo
             pg.mouse.set_visible(False)
@@ -174,17 +184,34 @@ class Client:
             # art assets
             self.backgrounds, self.background_thumbnails = load_backgrounds(f'{self.path}/backgrounds', resolution)
             self.character_assets = {}
+            self.accessory_assets = load_accessory_assets(
+                f'{self.path}/accessories',
+                self.accessory_meta_data,
+                scale=2
+            )
             self.attack_assets = {}
 
         def load_assets(self):
             # load characters
-            goose_major, sprites = load_character_assets(f'{self.path}/new_geese', self.progress, scale=3)
-            if sprites is not None:
+            goose_major, sprites = load_character_assets(
+                f'{self.path}/geese', 
+                self.geese_meta_data, 
+                self.progress, 
+                scale=2
+            )
+            if goose_major is not None:
                 self.character_assets[goose_major] = sprites
+
             # load attacks
-            attack_major, sprites = load_attack_assets(f'{self.path}/new_attacks', self.progress, scale=3)
-            if sprites is not None:
-                self.attack_assets[attack_major] = sprites
+            # attack_major, sprites = load_attack_assets(
+            #     f'{self.path}/new_attacks', 
+            #     self.attack_meta_data,
+            #     self.progress, 
+            #     scale=1
+            # )
+            # if attack_major is not None:
+            #     self.attack_assets[attack_major] = sprites
+            attack_major = None
 
             # done loading
             if goose_major is None and attack_major is None:
