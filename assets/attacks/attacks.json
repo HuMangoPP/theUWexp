@@ -1,0 +1,7 @@
+{
+    "attacks": [
+        "amath"
+    ],
+    "animations": ["n_light", "s_light", "d_light", "n_air", "s_air", "d_air"],
+    "amath": [5, 5, 5, 5, 5, 5]
+}
