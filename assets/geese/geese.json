@@ -1,0 +1,61 @@
+{
+    "geese": [
+        "amath", "pmath", 
+        "ece", "mechtron", "civarch",
+        "physchem", "kine", "psych", "plant", 
+        "pharm", "opto"
+    ],
+    "base": [
+        ["idle", 8], 
+        ["move", 8],
+        ["dash", 3],
+        ["jump", 3],
+        ["fall", 2]
+    ],
+    "light_attacks": ["n_light", "s_light", "d_light", "n_air", "s_air", "d_air"],
+    "special_attacks": ["n_special", "s_special", "d_special"],
+    "amath": {
+        "light": [3, 3, 3, 3, 3, 3],
+        "special": []
+    },
+    "pmath": {
+        "light": [5, 5, 5, 5, 5, 5],
+        "special": []
+    },
+    "physchem": {
+        "light": [3, 3, 3, 3, 3, 3],
+        "special": []
+    },
+    "mechtron": {
+        "light": [4, 4, 4, 4, 4, 4],
+        "special": []
+    },
+    "kine": {
+        "light": [3, 3, 3, 3, 3, 3],
+        "special": []
+    },
+    "psych": {
+        "light": [5, 5, 5, 5, 5, 5],
+        "special": []
+    },
+    "civarch": {
+        "light": [5, 5, 5, 5, 5, 5],
+        "special": []
+    },
+    "plant": {
+        "light": [5, 5, 5, 5, 5, 5],
+        "special": []
+    },
+    "pharm": {
+        "light": [3, 3, 3, 3, 3, 3],
+        "special": []
+    },
+    "opto": {
+        "light": [4, 4, 4, 4, 4, 4],
+        "special": []
+    },
+    "ece": {
+        "light": [4, 4, 4, 4, 4, 4],
+        "special": []
+    }
+}
