@@ -9,13 +9,13 @@ from ..util.math_util import lerp
 class _Settings:
     GROUND_LEVEL = 675
     
-    ANIMATION_SPEED = 12
+    FPS = 12
 
     SPEED = 300
     ACCELERATION = 1000
     JUMP_SPEED = -400
     DASH_SPEED = 1000
-    DASH_TIME = 1 / 4
+    DASH_TIME = 1 / 3
     SQUASH_SPEED = 5
     GRAVITY = 980
     ORIENTATION = dict(right=1, left=-1)
@@ -71,9 +71,9 @@ class Attack:
     def animate(self, goose, dt: float, attack_assets: dict[str, dict[str, dict[str, list[pg.Surface]]]]):
         if self.active:
             # animate
-            self.frame_index += dt * _Settings.ANIMATION_SPEED
-            animation_length = len(attack_assets.get(goose.major, attack_assets['basic'])[self.attack_type][goose.facing])
-            # animation_length = 10
+            self.frame_index += dt * _Settings.FPS
+            # animation_length = len(attack_assets.get(goose.major, attack_assets['basic'])[self.attack_type][goose.facing])
+            animation_length = 5
 
             # once animation is done, the attack ends
             if self.frame_index >= animation_length:
@@ -82,15 +82,15 @@ class Attack:
                 self.active = False
             
             # get the sprite
-            if self.active:
-                self.sprite = attack_assets.get(goose.major, attack_assets['basic'])[self.attack_type][goose.facing][int(self.frame_index)]
+            # if self.active:
+            #     self.sprite = attack_assets.get(goose.major, attack_assets['basic'])[self.attack_type][goose.facing][int(self.frame_index)]
                 
-                # get drawbox
-                self.drawbox = self.sprite.get_rect()
+            #     # get drawbox
+            #     self.drawbox = self.sprite.get_rect()
                 
-                self.drawbox.center = goose.drawbox.center
-            else:
-                self.sprite = None
+            #     self.drawbox.center = goose.drawbox.center
+            # else:
+            #     self.sprite = None
 
         self.cooldown = max(self.cooldown - dt, 0)
     
@@ -217,7 +217,7 @@ class Goose:
         self.frame_index = 0
 
         # # accessory
-        # self.accessory = Accessory(self)
+        self.accessory = Accessory(self)
 
         # particle effects
         self.dash_vfx = Boom()
@@ -279,6 +279,7 @@ class Goose:
         self, 
         dt: float,
         character_assets: dict[str, dict[str, dict[str, list[pg.Surface]]]],
+        accessory_assets: dict[str, dict[str, pg.Surface]],
         attack_assets: dict
     ):
         # update animation state
@@ -297,8 +298,8 @@ class Goose:
             self._change_animation('idle')
         
         # update animation
-        self.frame_index += dt * _Settings.ANIMATION_SPEED
-        animation_length = len(character_assets.get(self.major, character_assets['basic'])[self.action][self.facing])
+        self.frame_index += dt * _Settings.FPS
+        animation_length = len(character_assets[self.major][self.action][self.facing])
         # end of animation frames
         if self.frame_index >= animation_length:
             self.frame_index = 0
@@ -308,13 +309,13 @@ class Goose:
                 self.frame_index = animation_length - 1
 
         # get sprite
-        self.sprite = character_assets.get(self.major, character_assets['basic'])[self.action][self.facing][int(self.frame_index)]
+        self.sprite = character_assets[self.major][self.action][self.facing][int(self.frame_index)]
         self.drawbox = self.sprite.get_rect()
         self.drawbox.centerx = self.pos[0]
         self.drawbox.bottom = self.pos[1]
 
         # # animate accessories
-        # self.accessory.animate(self, dt, accessory_assets)
+        self.accessory.animate(self, dt, accessory_assets)
         
         # animate attacks
         self.attack.animate(self, dt, attack_assets)
@@ -364,7 +365,7 @@ class Goose:
                     attack_direction = 's'
                 else:
                     attack_direction = 'n'
-                self.attack.create_new_attack(self.facing, f'{attack_direction}{attack_type}')
+                self.attack.create_new_attack(self.facing, f'{attack_direction}_{attack_type}')
 
         # handle movement inputs
         if self.action_inputs['dash'] == 1:
@@ -482,7 +483,7 @@ class Goose:
         default.blit(self.sprite, self.drawbox)
 
         # # render accessory
-        # self.accessory.render(default)
+        self.accessory.render(default)
 
         # render attack
         self.attack.render(default)
