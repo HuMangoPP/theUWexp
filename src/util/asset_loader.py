@@ -110,10 +110,13 @@ def load_accessory_assets(path: str, meta_data: list, scale: float = 1):
 
 
 def load_attack_assets(path: str, meta_data: dict, progress: int, scale: float = 1):
-    majors = meta_data['']
+    majors = meta_data['attacks']
     if progress >= len(majors):
         return None, None
     major = majors[progress]
-    animations = meta_data[major]
+    animations = [
+        [animation, num_frames]
+        for animation, num_frames in zip(meta_data['animations'], meta_data[major])
+    ]
     sprites = _flip_frames(_scale_frames(_load_spritesheet(os.path.join(path, f'{major}.png'), animations), scale))
     return major.split('.')[0], sprites

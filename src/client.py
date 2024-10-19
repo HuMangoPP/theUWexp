@@ -166,8 +166,8 @@ class Client:
             with open(f'{path}/accessories/accessories.json') as f:
                 self.accessory_meta_data = json.load(f)
             self.attack_meta_data = {}
-            # with open(f'{path}/new_new_attacks/attacks.json') as f:
-            #     self.attack_meta_data = json.load(f)
+            with open(f'{path}/attacks/attacks.json') as f:
+                self.attack_meta_data = json.load(f)
 
             # cursor and logo
             pg.mouse.set_visible(False)
@@ -203,15 +203,14 @@ class Client:
                 self.character_assets[goose_major] = sprites
 
             # load attacks
-            # attack_major, sprites = load_attack_assets(
-            #     f'{self.path}/new_attacks', 
-            #     self.attack_meta_data,
-            #     self.progress, 
-            #     scale=1
-            # )
-            # if attack_major is not None:
-            #     self.attack_assets[attack_major] = sprites
-            attack_major = None
+            attack_major, sprites = load_attack_assets(
+                f'{self.path}/attacks', 
+                self.attack_meta_data,
+                self.progress, 
+                scale=2
+            )
+            if attack_major is not None:
+                self.attack_assets[attack_major] = sprites
 
             # done loading
             if goose_major is None and attack_major is None:

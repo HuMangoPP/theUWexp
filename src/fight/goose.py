@@ -72,8 +72,11 @@ class Attack:
         if self.active:
             # animate
             self.frame_index += dt * _Settings.FPS
-            # animation_length = len(attack_assets.get(goose.major, attack_assets['basic'])[self.attack_type][goose.facing])
-            animation_length = 5
+            attack_animations = attack_assets.get(goose.major, None)
+            if attack_animations is None:
+                animation_length = 5
+            else:
+                animation_length = len(attack_animations[self.attack_type][goose.facing])
 
             # once animation is done, the attack ends
             if self.frame_index >= animation_length:
@@ -82,15 +85,40 @@ class Attack:
                 self.active = False
             
             # get the sprite
-            # if self.active:
-            #     self.sprite = attack_assets.get(goose.major, attack_assets['basic'])[self.attack_type][goose.facing][int(self.frame_index)]
+            if self.active:
+                if attack_animations is not None:
+                    self.sprite = attack_animations[self.attack_type][goose.facing][int(self.frame_index)]
                 
-            #     # get drawbox
-            #     self.drawbox = self.sprite.get_rect()
-                
-            #     self.drawbox.center = goose.drawbox.center
-            # else:
-            #     self.sprite = None
+                    # get drawbox
+                    self.drawbox = self.sprite.get_rect()
+                    if self.attack_type[0] == 'n':
+                        self.drawbox.center = (
+                            goose.drawbox.centerx,
+                            goose.drawbox.top
+                        )
+                    elif self.attack_type[0] == 's':
+                        if goose.facing == 'left':
+                            self.drawbox.center = (
+                                goose.drawbox.left,
+                                goose.drawbox.centery
+                            )
+                        else:
+                            self.drawbox.center = (
+                                goose.drawbox.right,
+                                goose.drawbox.centery
+                            )
+                    else:
+                        if 'light' in self.attack_type:
+                            self.drawbox.center = goose.drawbox.center
+                        else:
+                            self.drawbox.center = (
+                                goose.drawbox.centerx,
+                                goose.drawbox.bottom
+                            )
+                else:
+                    self.sprite = None
+            else:
+                self.sprite = None
 
         self.cooldown = max(self.cooldown - dt, 0)
     

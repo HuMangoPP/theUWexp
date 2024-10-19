@@ -1,7 +1,20 @@
 {
     "attacks": [
-        "amath"
+        "amath", "pmath",
+        "ece", "mechtron", "civarch",
+        "physchem", "kine", "psych", "plant",
+        "pharm", "opto"
     ],
     "animations": ["n_light", "s_light", "d_light", "n_air", "s_air", "d_air"],
-    "amath": [5, 5, 5, 5, 5, 5]
+    "amath": [5,5,5,5,5,5],
+    "pmath": [7,7,7,7,7,7],
+    "kine": [5,5,5,5,5,5],
+    "physchem": [6,6,6,6,6,6],
+    "ece": [4,4,4,4,4,4],
+    "opto": [7,7,7,7,7,7],
+    "psych": [7,7,7,7,7,7],
+    "pharm": [4,4,4,4,4,4],
+    "plant": [5,5,5,5,5,5],
+    "mechtron": [4,4,4,4,4,4],
+    "civarch": [5,5,5,5,5,5]
 }
