@@ -1,128 +1,13 @@
 {
-    "arbus": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "astro": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "biotech": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "civarch": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "comm": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "csse": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "ece": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "fin": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "kine": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "mathco": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "mathphys": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "med": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "mte": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "nanophys": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "new_anim": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "opto": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "pharm": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "phil": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "plant": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "purechem": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    },
-    "stats": {
-        "nlight": 0.2,
-        "slight": 0.2,
-        "nspec": 0.4,
-        "sspec": 0.4
-    }
+    "amath": 0.2,
+    "civarch": 0.3,
+    "ece": 0.2,
+    "kine": 0.2,
+    "mechtron": 0.1,
+    "opto": 0.3,
+    "pharm": 0.3,
+    "physchem": 0.2,
+    "plant": 0.1,
+    "pmath": 0.2,
+    "psych": 0.3 
 }

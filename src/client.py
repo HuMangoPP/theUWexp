@@ -168,6 +168,9 @@ class Client:
             self.attack_meta_data = {}
             with open(f'{path}/attacks/attacks.json') as f:
                 self.attack_meta_data = json.load(f)
+            self.attack_damages = {}
+            with open(f'{path}/attacks/damages.json') as f:
+                self.attack_damages = json.load(f)
 
             # cursor and logo
             pg.mouse.set_visible(False)

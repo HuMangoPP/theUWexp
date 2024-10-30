@@ -471,7 +471,7 @@ class Goose:
         # self.knockback = self.knockback - signs * _Settings.ACCELERATION * dt
         # self.knockback[signs * self.knockback <= 0] = 0
 
-    def check_collide(self, rival_goose):
+    def check_collide(self, rival_goose, attack_damages: dict):
         if self.dash_time > 0: # invincibility
             return False
         if not rival_goose.attack.active or not rival_goose.attack.dangerous: # no attack 
@@ -488,7 +488,7 @@ class Goose:
         # calculate collision
         collision = goose_mask.overlap(attack_mask, np.array(rival_goose.attack.drawbox.topleft) - np.array(self.drawbox.topleft))
         if collision is not None:
-            self.gpa -= 0.5 # decrease gpa
+            self.gpa -= attack_damages[rival_goose.major] # decrease gpa
             rival_goose.attack.dangerous = False # prevent future collisions
             angle = np.arctan2(
                 rival_goose.drawbox.centerx - self.drawbox.centerx,

@@ -582,8 +582,8 @@ class FightMenu(Menu):
         # check colisions
         self.goose1.update(client.dt, self.resolution[0]) 
         self.goose2.update(client.dt, self.resolution[0])
-        hit1 = self.goose1.check_collide(self.goose2)
-        hit2 = self.goose2.check_collide(self.goose1)
+        hit1 = self.goose1.check_collide(self.goose2, client.assets.attack_damages)
+        hit2 = self.goose2.check_collide(self.goose1, client.assets.attack_damages)
 
         # enter bullet time
         if hit1 or hit2:
