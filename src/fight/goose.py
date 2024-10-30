@@ -16,7 +16,7 @@ class _Settings:
     JUMP_SPEED = -400
     DASH_SPEED = 1000
     DASH_TIME = 1 / 3
-    SQUASH_SPEED = 5
+    KNOCKBACK_SPEED = 500
     GRAVITY = 980
     ORIENTATION = dict(right=1, left=-1)
     
@@ -223,7 +223,7 @@ class Goose:
         # goose movement
         self.pos = np.array([goose_data['x'], 500])
         self.vel = np.zeros(2)
-        self.knockback = np.zeros(2)
+        self.knockback_angle = 0
         self.dash_time = 0
         self.dash_y = 0
 
@@ -269,6 +269,7 @@ class Goose:
 
     def _setup_input(self):
         # inputs
+        self.stunned_time = 0
         self.action_inputs = {
             'jump': 0,
             'light_attack': 0,
@@ -292,16 +293,6 @@ class Goose:
         if self.action != action or reset:
             self.frame_index = 0
         self.action = action
-
-    def get_knocked_back(self, knockback: np.ndarray):
-        # get knocked back
-        self.knockback = knockback
-
-        # orientation = 'right' if knockback[0] >= 0 else 'left'
-        # self.hit_particles['sparks'].create_new_particles(*self.drawbox.center, 0, -1)
-        # self.hit_particles['bolt'].create_new_particles(*self.drawbox.center, orientation, 0)
-        
-        # self.sfx['hit'].play()
 
     def animate(
         self, 
@@ -355,7 +346,7 @@ class Goose:
 
     def input(self, events: list[pg.Event], keybinds: dict[int, str]):
         for event in events:
-            if event.type == pg.KEYDOWN:
+            if event.type == pg.KEYDOWN and self.stunned_time <= 0:
                 # get inputs
                 key_function = keybinds.get(event.key, 'no_action')
                 if key_function in self.action_inputs:
@@ -371,6 +362,10 @@ class Goose:
                     self.direction_inputs[key_function] = 0
 
     def update(self, dt: float, width: float):
+        # check if stunned
+        if self.stunned_time > 0:
+            self.stunned_time -= dt
+
         # handle attack inputs
         if not self.attack.active and self.attack.cooldown <= 0:
             if self.action_inputs['light_attack'] == 1:
@@ -415,7 +410,6 @@ class Goose:
                 ]), np.full(3, angle))
         if self.action_inputs['jump'] == 1:
             self.action_inputs['jump'] = 0
-
             # prevent jump input when attack is active
             if not self.attack.active:
                 self.vel[1] = _Settings.JUMP_SPEED
@@ -456,6 +450,11 @@ class Goose:
         
         # move
         self.pos = self.pos + self.vel * dt
+        if self.stunned_time > 0:
+            self.pos = self.pos + (_Settings.KNOCKBACK_SPEED + lerp(0, _Settings.KNOCKBACK_SPEED, self.stunned_time)) * np.array([
+                np.sin(self.knockback_angle),
+                np.cos(self.knockback_angle)
+            ]) * dt
         self.pos[0] = np.clip(self.pos[0], a_min=0, a_max=width)
 
         # fall
@@ -471,7 +470,7 @@ class Goose:
         # self.knockback = self.knockback - signs * _Settings.ACCELERATION * dt
         # self.knockback[signs * self.knockback <= 0] = 0
 
-    def check_collide(self, rival_goose, attack_damages: dict):
+    def check_collide(self, rival_goose, attack_damages: dict, attack_knockbacks):
         if self.dash_time > 0: # invincibility
             return False
         if not rival_goose.attack.active or not rival_goose.attack.dangerous: # no attack 
@@ -489,17 +488,18 @@ class Goose:
         collision = goose_mask.overlap(attack_mask, np.array(rival_goose.attack.drawbox.topleft) - np.array(self.drawbox.topleft))
         if collision is not None:
             self.gpa -= attack_damages[rival_goose.major] # decrease gpa
+            self.stunned_time = attack_knockbacks[rival_goose.major]
             rival_goose.attack.dangerous = False # prevent future collisions
             angle = np.arctan2(
                 rival_goose.drawbox.centerx - self.drawbox.centerx,
                 rival_goose.drawbox.centery - self.drawbox.centery
             )
             self.hit_vfx.create_vfx(self.drawbox.center, angle) # sparks
-            angle = np.arctan2(
+            self.knockback_angle = np.arctan2(
                 self.drawbox.centerx - rival_goose.attack.drawbox.centerx,
                 self.drawbox.centery - rival_goose.attack.drawbox.centery
             )
-            self.impact_vfx.create_vfx(self.drawbox.center, angle) # impact
+            self.impact_vfx.create_vfx(self.drawbox.center, self.knockback_angle) # impact
             return True
         return False
 
