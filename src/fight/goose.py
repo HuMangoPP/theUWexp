@@ -370,7 +370,7 @@ class Goose:
                 if key_function in self.direction_inputs:
                     self.direction_inputs[key_function] = 0
 
-    def update(self, dt: float):
+    def update(self, dt: float, width: float):
         # handle attack inputs
         if not self.attack.active and self.attack.cooldown <= 0:
             if self.action_inputs['light_attack'] == 1:
@@ -456,6 +456,7 @@ class Goose:
         
         # move
         self.pos = self.pos + self.vel * dt
+        self.pos[0] = np.clip(self.pos[0], a_min=0, a_max=width)
 
         # fall
         if self.pos[1] >= _Settings.GROUND_LEVEL:

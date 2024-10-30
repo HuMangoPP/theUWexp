@@ -580,8 +580,8 @@ class FightMenu(Menu):
                 client.dt /= _Settings.BULLET_TIME_FACTOR
 
         # check colisions
-        self.goose1.update(client.dt) # TODO: prevent movement outside of screen boundary
-        self.goose2.update(client.dt)
+        self.goose1.update(client.dt, self.resolution[0]) 
+        self.goose2.update(client.dt, self.resolution[0])
         hit1 = self.goose1.check_collide(self.goose2)
         hit2 = self.goose2.check_collide(self.goose1)
 
