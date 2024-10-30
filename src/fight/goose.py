@@ -267,7 +267,7 @@ class Goose:
         #     'hit': pg.mixer.Sound('./assets/sounds/hit.wav')
         # }
 
-    def _setup_input(self):
+    def reset_input(self):
         # inputs
         self.stunned_time = 0
         self.action_inputs = {
@@ -286,7 +286,7 @@ class Goose:
     def reset_state(self, goose_data: dict):
         self._setup_state(goose_data)
         self._setup_animation(goose_data)
-        self._setup_input()
+        self.reset_input()
 
     def _change_animation(self, action: str, reset: bool = False):
         # change the animation state
@@ -495,11 +495,15 @@ class Goose:
                 rival_goose.drawbox.centery - self.drawbox.centery
             )
             self.hit_vfx.create_vfx(self.drawbox.center, angle) # sparks
-            self.knockback_angle = np.arctan2(
+            angle = np.arctan2(
                 self.drawbox.centerx - rival_goose.attack.drawbox.centerx,
                 self.drawbox.centery - rival_goose.attack.drawbox.centery
             )
-            self.impact_vfx.create_vfx(self.drawbox.center, self.knockback_angle) # impact
+            self.impact_vfx.create_vfx(self.drawbox.center, angle) # impact
+            self.knockback_angle = np.arctan2(
+                self.drawbox.centerx - rival_goose.drawbox.centerx,
+                self.drawbox.centery - rival_goose.drawbox.centery
+            )
             return True
         return False
 

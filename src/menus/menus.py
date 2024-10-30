@@ -43,6 +43,7 @@ class _Settings:
 
     BULLET_TIME_FACTOR = 1
     BULLET_TIME = 1
+    END_FIGHT_TIME_FACTOR = 10
 
 
 def _get_splash(
@@ -531,13 +532,7 @@ class FightMenu(Menu):
         self.lose_banner_delay = 0
 
         # bullet time 
-        self.bullet_time = False
-        self.bullet_time_elapsed = 0
-
-        # zoom and shake
-        # self.zoom_anchor = np.zeros(2)
-        # self.zoom_amt = 1
-        # self.shake_anchor = 0
+        self.bullet_time = 0
         
         # bg
         self.background = _Settings.BACKGROUNDS[background]
@@ -553,6 +548,8 @@ class FightMenu(Menu):
 
     def update(self, client):
         if self.loser is not None: # show loser
+            self.goose1.reset_input()
+            self.goose2.reset_input()
             self.lose_banner_opacity = min(self.lose_banner_opacity + client.dt, 1)
             self.lose_banner_delay += client.dt
             if self.lose_banner_delay >= 5:
@@ -566,18 +563,11 @@ class FightMenu(Menu):
             # self.goose2.input(events, kwargs['assets'].keybinds[1]) 
 
         # bullet time
-        if self.bullet_time:
-            self.bullet_time_elapsed -= client.dt
-            # screen shake
-            # self.zoom_amt += dt / 2
-            # if self.bullet_time_elapsed <= 0:
-            #     self.bullet_time = False
-            #     self.zoom_amt = 1
-            #     self.shake_anchor = np.zeros(2)
-            if self.bullet_time_elapsed <= 0:
-                self.bullet_time = False
-            else:
-                client.dt /= _Settings.BULLET_TIME_FACTOR
+        if self.loser is not None and self.transition_phase == 0:
+            client.dt /= _Settings.END_FIGHT_TIME_FACTOR
+        elif self.bullet_time > 0:
+            self.bullet_time -= client.dt
+            client.dt /= _Settings.BULLET_TIME_FACTOR
 
         # check colisions
         self.goose1.update(client.dt, self.resolution[0]) 
@@ -587,9 +577,7 @@ class FightMenu(Menu):
 
         # enter bullet time
         if hit1 or hit2:
-            self.bullet_time = True
-            self.bullet_time_elapsed = _Settings.BULLET_TIME
-            # self.zoom_anchor = hit1 if hit1 is not None else hit2
+            self.bullet_time = _Settings.BULLET_TIME
         
         # animate geese
         self.goose1.animate(
@@ -610,10 +598,6 @@ class FightMenu(Menu):
             self.loser = 'goose 1'
         if self.goose2.gpa <= 0 and self.loser is None:
             self.loser = 'goose 2'
-        if self.loser is not None:
-            # reset inputs
-            self.goose1.action_inputs = {action: 0 for action in self.goose1.action_inputs}
-            self.goose2.action_inputs = {action: 0 for action in self.goose2.action_inputs}
 
         return super().update(client)
     
@@ -685,33 +669,3 @@ class FightMenu(Menu):
             default.blit(banner, (0, self.resolution[1] / 2 - banner.get_height() / 2))
 
         super().render(client)
-        # if self.zoom_amt > 1:
-        #     zoomed = pg.Surface((np.array(default.get_size()) / self.zoom_amt).astype(int))
-        #     xoffset = np.clip(
-        #         self.zoom_anchor[0] - zoomed.get_width() / 2,
-        #         a_min=0,
-        #         a_max=default.get_width() - zoomed.get_width()
-        #     )
-        #     yoffset = np.clip(
-        #         self.zoom_anchor[1] - zoomed.get_height() / 2,
-        #         a_min=0,
-        #         a_max=default.get_height() - zoomed.get_height()
-        #     )
-        #     zoomed.blit(default, (-xoffset,-yoffset))
-        #     default = pg.transform.scale(zoomed, default.get_size())
-
-        #     zoomed = pg.Surface((np.array(effects.get_size()) / self.zoom_amt).astype(int))
-        #     xoffset = np.clip(
-        #         self.zoom_anchor[0] - zoomed.get_width() / 2,
-        #         a_min=0,
-        #         a_max=effects.get_width() - zoomed.get_width()
-        #     )
-        #     yoffset = np.clip(
-        #         self.zoom_anchor[1] - zoomed.get_height() / 2,
-        #         a_min=0,
-        #         a_max=effects.get_height() - zoomed.get_height()
-        #     )
-        #     zoomed.blit(effects, (-xoffset,-yoffset))
-        #     effects = pg.transform.scale(zoomed, effects.get_size())
-
-
