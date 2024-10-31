@@ -1,15 +1,39 @@
 import pygame as pg
 import numpy as np
 
-from ..util import (
-    transition_in, 
-    transition_out, 
-    TRANSITION_TIME,
-    lerp
-)
+from ..util import lerp
 
 
 class _Settings:
+    TRANSITION_TIME = 0.5
+
+    def transition_out(overlay: pg.Surface, transition_time: float):
+        width, height = overlay.get_size()
+        transition_progress = 1.25 * transition_time / _Settings.TRANSITION_TIME
+        topleft = [0, 0]
+        bottomleft = [0, height]
+        topright = [transition_progress * width , 0]
+        bottomright = [transition_progress * width - 200, height]
+        points = [
+            topleft, bottomleft, bottomright, topright
+        ]
+        overlay.fill((0, 0, 0))
+        pg.draw.polygon(overlay, (10, 10, 10), points)
+
+    def transition_in(overlay: pg.Surface, transition_time: float):
+        width, height = overlay.get_size()
+        transition_progress = 1.25 * transition_time / _Settings.TRANSITION_TIME
+        topleft = [transition_progress * width, 0]
+        bottomleft = [transition_progress * width - 200, height]
+        topright = [width, 0]
+        bottomright = [width, height]
+        points = [
+            topleft, bottomleft, bottomright, topright
+        ]
+        overlay.fill((0, 0, 0))
+        pg.draw.polygon(overlay, (10, 10, 10), points)
+    
+
     GOLD = (255, 213, 0)
     BLACK = (10, 10, 10)
     GRAY = (150, 150, 150)
@@ -62,6 +86,9 @@ def _get_splash(
     return goose_sprite, accessory_sprite
 
 
+import pygame as pg
+
+
 class Menu:
     def __init__(self, client):
         self.resolution = client.resolution
@@ -82,9 +109,9 @@ class Menu:
         # transition logic
         if self.transition_phase > 0:
             self.transition_time += client.dt
-            if self.transition_phase == 1 and self.transition_time > TRANSITION_TIME:
+            if self.transition_phase == 1 and self.transition_time > _Settings.TRANSITION_TIME:
                 return dict(exit=False, goto=self.goto)
-            if self.transition_time > TRANSITION_TIME:
+            if self.transition_time > _Settings.TRANSITION_TIME:
                 self.transition_time = 0
                 self.transition_phase = (self.transition_phase + 1) % 4
         
@@ -92,11 +119,11 @@ class Menu:
     
     def _render_overlay(self, display: pg.Surface):
         if self.transition_phase == 1: # fade out
-            transition_out(display, self.transition_time)
+            _Settings.transition_out(display, self.transition_time)
         elif self.transition_phase == 2: # "black" screen
             display.fill(_Settings.BLACK)
         elif self.transition_phase == 3: # fade in
-            transition_in(display, self.transition_time)
+            _Settings.transition_in(display, self.transition_time)
 
     def render(self, client):
         # render overlay
