@@ -129,6 +129,16 @@ class Menu:
         # render overlay
         self._render_overlay(client.displays['overlay'])
 
+        # fps
+        client.font.render(
+            client.displays['overlay'],
+            f'{int(client.clock.get_fps())}',
+            (10, 10),
+            _Settings.LIGHT,
+            20,
+            style='topleft'
+        )
+
 
 class StartMenu(Menu):
     def __init__(self, client):
